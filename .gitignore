@@ -4,10 +4,11 @@ dist/
 dist-ssr/
 *.local
 
-# 锁定文件（使用 pnpm-lock.yaml，忽略其他）
+# 锁定文件（Cloudflare Pages 会自动生成）
 package-lock.json
 yarn.lock
-# 保留 pnpm-lock.yaml 和 pnpm-workspace.yaml
+pnpm-lock.yaml
+pnpm-workspace.yaml
 
 # 本地构建的包
 *.tgz
