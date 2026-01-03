@@ -70,7 +70,7 @@ scripts/
 switch-dependency.js
 switch-dependency.sh
 wrangler.toml.example
-# 保留 wrangler.toml（Cloudflare Pages 配置）
+wrangler.toml
 
 # ========== 不必要的文档（保留核心文档） ==========
 FREE_STORAGE_OPTIONS.md
