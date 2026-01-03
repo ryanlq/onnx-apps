@@ -1,6 +1,0 @@
-overrides:
-  onnx-web-framework: link:../onnx-web-framework-package
-
-ignoredBuiltDependencies:
-  - esbuild
-  - protobufjs
