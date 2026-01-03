@@ -1,0 +1,117 @@
+# ========== 依赖和构建产物 ==========
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# 锁定文件（使用 pnpm-lock.yaml，忽略其他）
+package-lock.json
+yarn.lock
+# 保留 pnpm-lock.yaml 和 pnpm-workspace.yaml
+
+# 本地构建的包
+*.tgz
+onnx-web-framework-*.tgz
+
+# ========== 环境变量和密钥（隐私安全） ==========
+.env
+.env.local
+.env.*.local
+.env.huggingface
+.env.production
+!.env.example
+
+# API 密钥和令牌
+*.token
+*.key
+*.secret
+*.pem
+ HF_TOKEN
+ hf_*
+
+# ========== 开发工具和配置 ==========
+# Claude Code 配置
+.claude/
+
+# 编辑器
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# 测试覆盖率
+coverage/
+*.lcov
+.nyc_output/
+
+# ========== 日志和临时文件 ==========
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+nul
+
+# ========== 开发脚本和工具（不上传到公开仓库） ==========
+scripts/
+switch-dependency.js
+switch-dependency.sh
+wrangler.toml.example
+wrangler.toml
+
+# ========== 不必要的文档（保留核心文档） ==========
+FREE_STORAGE_OPTIONS.md
+HF_TOKEN_UPLOAD_GUIDE.md
+HUGGINGFACE_QUICKSTART.md
+HUGGINGFACE_SETUP.md
+CLOUDFLARE_DEPLOYMENT.md
+CLOUDFLARE_QUICKSTART.md
+
+# 保留的文档：
+# - DEPLOY.md（快速部署指南）
+# - CLOUDFLARE_PAGES_DEPLOYMENT.md（完整部署文档）
+# - DEPLOYMENT_CHECKLIST.md（部署检查清单）
+# - README.md（项目说明）
+
+# ========== 操作系统文件 ==========
+# Windows
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+
+# ========== 构建缓存 ==========
+.cache/
+.parcel-cache/
+.vite/
+.eslintcache
+.stylelintcache
+
+# ========== 本地模型文件（使用 Hugging Face 托管） ==========
+public/onnx-models/
+!public/onnx-models/.gitkeep
+public/test-env.html
+
+# ========== 必须保留的文件 ==========
+# public/_headers（Cloudflare Pages COOP/COEP 配置）
+# public/_redirects（Cloudflare Pages 重定向规则）
+# .env.example（环境变量示例）

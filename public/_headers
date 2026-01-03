@@ -1,0 +1,20 @@
+# Cloudflare Pages Headers Configuration
+# 用于配置 COOP/COEP 以支持 SharedArrayBuffer
+
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  X-Content-Type-Options: nosniff
+
+# 缓存策略 - 静态资源
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# WASM 文件缓存
+/*.wasm
+  Cache-Control: public, max-age=31536000, immutable
+
+# 模型文件缓存（如果直接从 Pages 托管）
+/onnx-models/*
+  Cache-Control: public, max-age=86400
+  X-Robots-Tag: noindex

@@ -1,0 +1,13 @@
+{
+  "env": {
+    "allowLocalModels": false,
+    "allowRemoteModels": true
+  },
+  "backends": {
+    "onnx": {
+      "wasm": {
+        "numThreads": 1
+      }
+    }
+  }
+}

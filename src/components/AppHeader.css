@@ -1,0 +1,151 @@
+/* ========== 应用通用 Header 样式 ========== */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1px 5px;
+  background: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 2px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+/* 返回按钮（Home 图标） */
+.app-header-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.05);
+  color: #9ca3af;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.app-header-back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #d7d7d7;
+}
+
+.app-header-back-btn:active {
+  transform: scale(0.95);
+}
+
+.app-header-back-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.app-header-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.app-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #d7d7d7;
+  margin: 0;
+}
+
+.app-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 通用按钮样式 */
+.app-header-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.app-header-btn-primary {
+  background: #e5e5e5;
+  color: #1a1a1a;
+}
+
+.app-header-btn-primary:hover:not(:disabled) {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.2);
+}
+
+.app-header-btn-secondary {
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.app-header-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #d7d7d7;
+}
+
+.app-header-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .app-header {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px 16px;
+  }
+
+  .app-header-left {
+    width: 100%;
+  }
+
+  .app-header-title {
+    font-size: 16px;
+  }
+
+  .app-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .app-header-btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 80px;
+    font-size: 12px;
+    padding: 5px 12px;
+  }
+
+  .app-header-back-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .app-header-back-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+}

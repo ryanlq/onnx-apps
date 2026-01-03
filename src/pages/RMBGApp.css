@@ -1,0 +1,346 @@
+/* ========== RMBG 应用特有样式 ========== */
+/* 导入通用样式 */
+@import './AppCommon.css';
+
+/* 为兼容性保留 rmbg-* 类名作为 app-* 的别名 */
+.rmbg-container,
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #101010;
+}
+
+.rmbg-content,
+.app-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+
+.rmbg-upload-section,
+.app-upload-section {
+  width: 100%;
+  max-width: 500px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.rmbg-upload-area,
+.app-upload-area {
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 40px 32px;
+  background: rgba(26, 26, 26, 0.5);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-align: center;
+}
+
+.rmbg-upload-area:hover,
+.app-upload-area:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.rmbg-upload-area.drag-over,
+.app-upload-area.drag-over {
+  border-color: #e5e5e5;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rmbg-upload-icon,
+.app-upload-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.7;
+}
+
+.rmbg-upload-text,
+.app-upload-text {
+  color: #d7d7d7;
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.rmbg-upload-subtext,
+.app-upload-subtext {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.rmbg-result-section,
+.app-result-section {
+  flex: 1;
+  align-items: center;
+  min-height: 0;
+  width: 100%;
+  max-width: 1024px;
+  animation: fadeIn 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rmbg-slider-container,
+.app-slider-container {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-image:
+    linear-gradient(45deg, #2a2a2a 25%, transparent 25%),
+    linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
+    linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.rmbg-processing-overlay,
+.app-processing-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease;
+}
+
+.rmbg-processing-overlay.show,
+.app-processing-overlay.show {
+  display: flex;
+}
+
+.rmbg-processing-content,
+.app-processing-content {
+  background: #1a1a1a;
+  padding: 32px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
+  min-width: 240px;
+}
+
+.rmbg-spinner,
+.app-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid #e5e5e5;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.rmbg-processing-content h3,
+.app-processing-content h3 {
+  color: #d7d7d7;
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.rmbg-processing-content p,
+.app-processing-content p {
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.img-slider {
+  --divider-color: rgba(0, 0, 0, 0.5);
+  --default-handle-color: rgba(0, 0, 0, 0.5);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.img-slider img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  box-sizing: border-box;
+}
+
+/* RMBG 特有：背景选择器样式 */
+.background-picker-container {
+  position: fixed;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.background-picker-toggle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  transition: all 0.3s ease;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.6);
+  }
+}
+
+.background-picker-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.background-picker-toggle:active {
+  transform: scale(0.95);
+}
+
+.background-picker-panel {
+  background: rgba(26, 26, 26, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-width: 200px;
+  animation: slideInLeft 0.3s ease;
+  will-change: transform, opacity;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.background-picker-header {
+  color: #d7d7d7;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  text-align: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.background-picker-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.background-option {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  isolation: isolate;
+}
+
+.background-option:hover {
+  border-color: rgba(102, 126, 234, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+}
+
+.background-option.active {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+}
+
+.background-preview {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transform: none !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .rmbg-container,
+  .app-container {
+    padding: 12px;
+  }
+
+  .rmbg-upload-area,
+  .app-upload-area {
+    padding: 32px 20px;
+  }
+
+  .rmbg-upload-icon,
+  .app-upload-icon {
+    font-size: 40px;
+  }
+
+  .rmbg-upload-text,
+  .app-upload-text {
+    font-size: 14px;
+  }
+
+  .rmbg-upload-subtext,
+  .app-upload-subtext {
+    font-size: 11px;
+  }
+}

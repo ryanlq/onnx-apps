@@ -1,0 +1,473 @@
+/* ========== Whisper App Styles ========== */
+
+/* 上传区域 */
+.whisper-upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  gap: 30px;
+}
+
+.whisper-upload-area {
+  width: 100%;
+  max-width: 600px;
+  padding: 60px 40px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.whisper-upload-area:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(102, 126, 234, 0.5);
+  transform: translateY(-2px);
+}
+
+.whisper-upload-area.drag-over {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: #667eea;
+  transform: scale(1.02);
+}
+
+.whisper-upload-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.whisper-upload-text {
+  color: #d7d7d7;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.whisper-upload-subtext {
+  color: #9ca3af;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 设置区域 */
+.whisper-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  width: 100%;
+  max-width: 800px;
+}
+
+.whisper-setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.whisper-setting-group label {
+  color: #d7d7d7;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.whisper-setting-group select {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #d7d7d7;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.whisper-setting-group select:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.whisper-setting-group select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 模型信息卡片 */
+.whisper-model-info {
+  width: 100%;
+  max-width: 800px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.whisper-model-info h3 {
+  color: #d7d7d7;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.whisper-model-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.whisper-model-table-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.whisper-model-table-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #d7d7d7;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.whisper-model-table-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateX(4px);
+}
+
+.whisper-model-table-row.active {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: #667eea;
+}
+
+/* 工作区 */
+.whisper-workspace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  padding: 40px 20px;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* 音频播放器 */
+.whisper-audio-player {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.whisper-audio-element {
+  width: 100%;
+  height: 40px;
+}
+
+/* 操作按钮 */
+.whisper-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.whisper-transcribe-button {
+  padding: 16px 48px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.whisper-transcribe-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.whisper-transcribe-button:active {
+  transform: translateY(0);
+}
+
+.whisper-hint {
+  color: #9ca3af;
+  font-size: 14px;
+  text-align: center;
+  max-width: 400px;
+}
+
+/* 加载状态 */
+.whisper-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.whisper-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.whisper-loading h3 {
+  color: #d7d7d7;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.whisper-progress {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.whisper-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.whisper-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.whisper-progress-text {
+  color: #9ca3af;
+  font-size: 12px;
+  text-align: center;
+}
+
+.whisper-preview {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.whisper-preview h4 {
+  color: #d7d7d7;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.whisper-preview p {
+  color: #9ca3af;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* 转录结果 */
+.whisper-result {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.whisper-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.whisper-result-header h3 {
+  color: #d7d7d7;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.whisper-result-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.whisper-action-button {
+  padding: 8px 16px;
+  background: rgba(102, 126, 234, 0.2);
+  border: 1px solid #667eea;
+  border-radius: 8px;
+  color: #d7d7d7;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.whisper-action-button:hover {
+  background: rgba(102, 126, 234, 0.3);
+  transform: translateY(-1px);
+}
+
+.whisper-transcript-box {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 20px;
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.whisper-transcript-box::-webkit-scrollbar {
+  width: 8px;
+}
+
+.whisper-transcript-box::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.whisper-transcript-box::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.whisper-transcript-box::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.whisper-transcript-box p {
+  color: #d7d7d7;
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.whisper-chunks {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.whisper-chunk {
+  display: flex;
+  gap: 12px;
+  line-height: 1.8;
+}
+
+.whisper-chunk-time {
+  color: #667eea;
+  font-size: 14px;
+  font-family: monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.whisper-chunk-text {
+  color: #d7d7d7;
+  font-size: 16px;
+}
+
+/* 统计信息 */
+.whisper-stats {
+  display: flex;
+  gap: 24px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.whisper-stat {
+  display: flex;
+  gap: 8px;
+}
+
+.whisper-stat-label {
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.whisper-stat-value {
+  color: #667eea;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .whisper-upload-section {
+    padding: 16px;
+  }
+
+  .whisper-upload-area {
+    padding: 40px 24px;
+  }
+
+  .whisper-settings {
+    flex-direction: column;
+  }
+
+  .whisper-setting-group {
+    min-width: 100%;
+  }
+
+  .whisper-model-table-header,
+  .whisper-model-table-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .whisper-workspace {
+    padding: 20px 16px;
+  }
+
+  .whisper-transcribe-button {
+    width: 100%;
+    padding: 14px 32px;
+  }
+
+  .whisper-stats {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+}

@@ -1,0 +1,211 @@
+/* ========== 通用应用样式 ========== */
+
+/* 容器 */
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #101010;
+}
+
+/* 主内容区域 */
+.app-content {
+  flex: 1;
+  min-height: 0; /* 允许 flex 子元素收缩 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden; /* 防止内容溢出 */
+}
+
+/* 上传区域 */
+.app-upload-section {
+  width: 100%;
+  max-width: 500px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.app-upload-area {
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 40px 32px;
+  background: rgba(26, 26, 26, 0.5);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-align: center;
+}
+
+.app-upload-area:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.app-upload-area.drag-over {
+  border-color: #e5e5e5;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-upload-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.7;
+}
+
+.app-upload-text {
+  color: #d7d7d7;
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.app-upload-subtext {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+/* 结果展示区域 */
+.app-result-section {
+  flex: 1;
+  align-items: center;
+  min-height: 0; /* 允许收缩以适应可用空间 */
+  width: 100%;
+  max-width: 1024px;
+  animation: fadeIn 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-slider-container {
+  flex: 1;
+  min-height: 0; /* 允许收缩以适应可用空间 */
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  /* 棋盘格背景 */
+  background-image:
+    linear-gradient(45deg, #2a2a2a 25%, transparent 25%),
+    linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
+    linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box; /* 包含 border 和 padding 在尺寸内 */
+}
+
+/* 处理中遮罩 */
+.app-processing-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease;
+}
+
+.app-processing-overlay.show {
+  display: flex;
+}
+
+.app-processing-content {
+  background: #1a1a1a;
+  padding: 32px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
+  min-width: 240px;
+}
+
+.app-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid #e5e5e5;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.app-processing-content h3 {
+  color: #d7d7d7;
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.app-processing-content p {
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+/* 图片滑块样式 */
+.img-slider {
+  --divider-color: rgba(0, 0, 0, 0.5);
+  --default-handle-color: rgba(0, 0, 0, 0.5);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box; /* 确保 border 不增加额外尺寸 */
+}
+
+.img-slider img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain; /* 保持宽高比，完整显示在容器内 */
+  object-position: center; /* 图片居中 */
+  box-sizing: border-box;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 12px;
+  }
+
+  .app-upload-area {
+    padding: 32px 20px;
+  }
+
+  .app-upload-icon {
+    font-size: 40px;
+  }
+
+  .app-upload-text {
+    font-size: 14px;
+  }
+
+  .app-upload-subtext {
+    font-size: 11px;
+  }
+}
