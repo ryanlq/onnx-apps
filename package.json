@@ -18,7 +18,6 @@
     "@img-comparison-slider/react": "^8.0.2",
     "onnx-web-framework": "github:ryanlq/onnx-web-framework-package#v2.0.0",
     "onnxruntime-web": "1.22.0-dev.20250409-89f8206ba4",
-    "opencv-ts": "^1.3.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-toastify": "^11.0.5"

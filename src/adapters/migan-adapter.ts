@@ -1,11 +1,10 @@
 /**
  * MI-GAN Inpainting Adapter
  *
- * 使用 ONNXWorkerManager + OpenCV.js
+ * 使用 ONNXWorkerManager + Canvas API
  * 参考 inpaint-web 项目：https://github.com/lxfater/inpaint-web
  */
 
-import cv, { type Mat } from 'opencv-ts';
 import ONNXWorkerManager from '../utils/onnxWorkerManager';
 import { getModelUrl } from '../config/deployment';
 
@@ -23,39 +22,50 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /**
- * 图像预处理：使用 OpenCV.js 转换为 NCHW 格式
+ * 图像预处理：使用 Canvas API 转换为 NCHW 格式
+ * RGBA -> RGB -> NCHW
  */
-function imgProcess(img: Mat): Uint8Array {
-  const channels = new cv.MatVector();
-  cv.split(img, channels); // 分割通道
-  const C = channels.size(); // 通道数
-  const H = img.rows; // 图像高度
-  const W = img.cols; // 图像宽度
-  const chwArray = new Uint8Array(C * H * W); // 创建新的数组来存储转换后的数据
+function imgProcess(imageData: ImageData): Uint8Array {
+  const pixels = imageData.data; // RGBA 格式
+  const width = imageData.width;
+  const height = imageData.height;
+  const C = 3; // RGB 3通道
+  const H = height;
+  const W = width;
 
-  for (let c = 0; c < C; c++) {
-    const channelData = channels.get(c).data; // 获取单个通道的数据
-    for (let h = 0; h < H; h++) {
-      for (let w = 0; w < W; w++) {
-        chwArray[c * H * W + h * W + w] = channelData[h * W + w];
-      }
+  // 创建 NCHW 格式的数组
+  const chwArray = new Uint8Array(C * H * W);
+
+  for (let h = 0; h < H; h++) {
+    for (let w = 0; w < W; w++) {
+      const srcIdx = (h * W + w) * 4; // RGBA 索引
+      const r = pixels[srcIdx];     // R
+      const g = pixels[srcIdx + 1]; // G
+      const b = pixels[srcIdx + 2]; // B
+
+      // NCHW 格式：[C, H, W]
+      chwArray[0 * H * W + h * W + w] = r; // R 通道
+      chwArray[1 * H * W + h * W + w] = g; // G 通道
+      chwArray[2 * H * W + h * W + w] = b; // B 通道
     }
   }
-  channels.delete(); // 清理内存
-  return chwArray; // 返回转换后的数据
+
+  return chwArray;
 }
 
 /**
  * 蒙版预处理：转换为灰度并二值化
+ * RGBA -> Grayscale -> Invert (0=inpaint区域, 255=保留区域)
  */
-function markProcess(img: Mat): Uint8Array {
-  const channels = new cv.MatVector();
-  cv.split(img, channels); // 分割通道
-  const H = img.rows; // 图像高度
-  const W = img.cols; // 图像宽度
-  const chwArray = new Uint8Array(H * W); // 创建新的数组来存储转换后的数据
+function markProcess(imageData: ImageData): Uint8Array {
+  const pixels = imageData.data; // RGBA 格式
+  const width = imageData.width;
+  const height = imageData.height;
+  const H = height;
+  const W = width;
 
-  const channelData = channels.get(0).data; // 获取第一个通道的数据
+  // 创建 HW 格式的数组（灰度蒙版）
+  const hwArray = new Uint8Array(H * W);
 
   // 统计蒙版数据
   let paintedPixels = 0;
@@ -63,60 +73,83 @@ function markProcess(img: Mat): Uint8Array {
 
   for (let h = 0; h < H; h++) {
     for (let w = 0; w < W; w++) {
-      const pixelValue = channelData[h * W + w];
+      const srcIdx = (h * W + w) * 4; // RGBA 索引
+      const r = pixels[srcIdx];     // R
+      const g = pixels[srcIdx + 1]; // G
+      const b = pixels[srcIdx + 2]; // B
+      const a = pixels[srcIdx + 3]; // A
+
+      // 计算灰度值（加权平均）
+      const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+
       // MI-GAN 蒙版格式：0=inpaint区域，255=保留区域
       // 我们的蒙版绘制的是红色（255），需要反转
-      if (pixelValue > 0) {
-        // 有绘制（红色 > 0），设为 0 表示需要修复
-        chwArray[h * W + w] = 0;
+      if (gray > 0 || a > 0) {
+        // 有绘制（红色 > 0 或有透明度），设为 0 表示需要修复
+        hwArray[h * W + w] = 0;
         paintedPixels++;
       } else {
         // 无绘制（透明），设为 255 表示保留
-        chwArray[h * W + w] = 255;
+        hwArray[h * W + w] = 255;
         unpaintedPixels++;
       }
     }
   }
 
   console.log(`[MIGAN Adapter] 蒙版统计 - 绘制像素: ${paintedPixels}, 未绘制像素: ${unpaintedPixels}`);
-  console.log(`[MIGAN Adapter] 蒙版数据前20个值:`, Array.from(chwArray.slice(0, 20)));
+  console.log(`[MIGAN Adapter] 蒙版数据前20个值:`, Array.from(hwArray.slice(0, 20)));
 
-  channels.delete(); // 清理内存
-  return chwArray; // 返回转换后的数据
+  return hwArray;
 }
 
 /**
- * 处理图像：将 HTMLImageElement 转换为 OpenCV Mat 并预处理
+ * 处理图像：将 HTMLImageElement 转换为 Canvas ImageData 并预处理
+ * 使用 Canvas API 替代 OpenCV.js
  */
 function processImage(img: HTMLImageElement): Uint8Array {
-  const src = cv.imread(img);
-  const src_rgb = new cv.Mat();
-  // 将图像从RGBA转换为RGB
-  cv.cvtColor(src, src_rgb, cv.COLOR_RGBA2RGB);
+  // 创建离屏 canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
 
-  const result = imgProcess(src_rgb);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('无法获取 canvas context');
+  }
 
-  src.delete();
-  src_rgb.delete();
+  // 绘制图片到 canvas
+  ctx.drawImage(img, 0, 0);
 
-  return result;
+  // 获取像素数据 (RGBA 格式)
+  const imageData = ctx.getImageData(0, 0, img.width, img.height);
+
+  // 转换为 NCHW 格式 (RGB)
+  return imgProcess(imageData);
 }
 
 /**
  * 处理蒙版：将 HTMLImageElement 转换为灰度蒙版
+ * 使用 Canvas API 替代 OpenCV.js
  */
 function processMark(img: HTMLImageElement): Uint8Array {
-  const src = cv.imread(img);
-  const src_grey = new cv.Mat();
-  // 将图像从RGBA转换为灰度
-  cv.cvtColor(src, src_grey, cv.COLOR_BGR2GRAY);
+  // 创建离屏 canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
 
-  const result = markProcess(src_grey);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('无法获取 canvas context');
+  }
 
-  src.delete();
-  src_grey.delete();
+  // 绘制图片到 canvas
+  ctx.drawImage(img, 0, 0);
 
-  return result;
+  // 获取像素数据 (RGBA 格式)
+  const imageData = ctx.getImageData(0, 0, img.width, img.height);
+
+  // 转换为灰度蒙版并反转
+  return markProcess(imageData);
 }
 
 /**
@@ -197,12 +230,16 @@ export default async function inpaint(
 
     console.log('[MIGAN Adapter] 图像尺寸:', originalImg.width, 'x', originalImg.height);
 
-    // 2. 使用 OpenCV.js 预处理
+    // 2. 使用 Canvas API 预处理
     console.time('preprocess');
-    const [img, mark] = await Promise.all([
-      processImage(originalImg),
-      processMark(await resizeMark(originalMark, originalImg.width, originalImg.height))
-    ]);
+
+    // 调整蒙版大小
+    const resizedMark = await resizeMark(originalMark, originalImg.width, originalImg.height);
+
+    // 同步处理图像和蒙版（Canvas API 是同步的，不会阻塞）
+    const img = processImage(originalImg);
+    const mark = processMark(resizedMark);
+
     console.timeEnd('preprocess');
 
     // 3. 准备张量数据

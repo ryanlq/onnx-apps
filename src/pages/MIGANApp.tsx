@@ -65,14 +65,15 @@ export default function MIGANAppSimple({ onBack }: MIGANAppSimpleProps) {
           draggable: false
         });
 
-        const manager = ONNXWorkerManager.getInstance();
+        // 加载 ONNX 模型（必须完成）
+        const mgr = ONNXWorkerManager.getInstance();
 
-        if (!manager.isModelLoaded('migan')) {
+        if (!mgr.isModelLoaded('migan')) {
           console.log('[MIGANApp] 加载 MI-GAN 模型...');
           const modelUrl = getModelUrl('migan_pipeline_v2.ort');
           console.log('[MIGANApp] 模型 URL:', modelUrl);
 
-          await manager.loadModel('migan', modelUrl, {
+          await mgr.loadModel('migan', modelUrl, {
             onProgress: (progress) => {
               // 更新 toast 显示进度
               toast.update(loadingToast, {
@@ -84,9 +85,12 @@ export default function MIGANAppSimple({ onBack }: MIGANAppSimpleProps) {
           console.log('[MIGANApp] MI-GAN 模型已加载，跳过');
         }
 
+        // ❌ 不预加载 OpenCV，避免 8MB data URL 导致页面卡死
+        // OpenCV 将在用户首次点击"开始修复"时才加载
+
         setIsInitialized(true);
         toast.dismiss(loadingToast);
-        toast.success('✅ 模型已就绪');
+        toast.success('✅ 模型已就绪！上传图片并涂抹蒙版后点击"开始修复"');
         console.log('✅ [MIGANApp] 初始化完成');
       } catch (error) {
         console.error('[MIGANApp] 初始化错误:', error);

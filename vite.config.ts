@@ -31,7 +31,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // 增加最大缓存文件大小限制（opencv.js 约 8.5MB + WASM 约 21MB）
+        // 增加最大缓存文件大小限制
         maximumFileSizeToCacheInBytes: 30 * 1024 * 1024, // 30 MB
 
         // 配置 WASM 文件的缓存策略
@@ -163,11 +163,6 @@ export default defineConfig({
           // ONNX Runtime：单独打包
           if (id.includes('onnxruntime-web')) {
             return 'onnxruntime';
-          }
-
-          // OpenCV：单独打包
-          if (id.includes('opencv-ts')) {
-            return 'opencv';
           }
         },
         // 更好的 chunk 命名
