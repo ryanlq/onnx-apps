@@ -68,11 +68,11 @@ class ONNXWorkerManager {
 
       await this.proxy.initialize({
         executionProviders: ['wasm'],
-        useIndexedDBWasm: true  // 启用 IndexedDB WASM 缓存
+        wasmPaths: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/'
       });
 
       this.initialized = true;
-      console.log('[ONNXWorkerManager] ✅ 全局 Worker 初始化完成（使用 IndexedDB WASM 缓存）');
+      console.log('[ONNXWorkerManager] ✅ 全局 Worker 初始化完成（使用 CDN WASM，Service Worker 缓存）');
     } catch (error) {
       console.error('[ONNXWorkerManager] ❌ 初始化失败:', error);
       this.initializingPromise = null;

@@ -1,6 +1,5 @@
-import { useState, lazy, Suspense, useEffect } from 'react';
-import { ToastContainer, toast } from 'react-toastify';
-import { preloadWasmFiles } from './utils/wasmCache';
+import { useState, lazy, Suspense } from 'react';
+import { ToastContainer } from 'react-toastify';
 import './App.css';
 
 // 路由级代码分割 - 按需加载应用组件
@@ -73,27 +72,6 @@ const apps: AppItem[] = [
 
 function App() {
   const [currentApp, setCurrentApp] = useState<string | null>(null);
-  const [isPreloading, setIsPreloading] = useState(false);
-
-  // 在首页预加载 WASM 文件到 IndexedDB
-  useEffect(() => {
-    if (!currentApp) {
-      const loadWasm = async () => {
-        setIsPreloading(true);
-        try {
-          await preloadWasmFiles();
-          toast.success('WASM 文件已缓存，可以正常使用应用');
-        } catch (error) {
-          console.error('WASM 预加载失败:', error);
-          toast.error('WASM 预加载失败，请刷新页面重试');
-        } finally {
-          setIsPreloading(false);
-        }
-      };
-
-      loadWasm();
-    }
-  }, [currentApp]);
 
   // 如果选择了某个应用，显示该应用
   if (currentApp) {
@@ -115,14 +93,7 @@ function App() {
     <div className="home-container">
       <div className="home-header">
         <h1 className="home-title">ONNX Web 应用集合</h1>
-        <p className="home-subtitle">
-          {isPreloading ? '正在预加载 WASM 文件...' : '基于 ONNX Runtime Web 的 AI 应用工具箱'}
-        </p>
-        {isPreloading && (
-          <div style={{ marginTop: '16px' }}>
-            <div className="loader-spinner" style={{ width: '32px', height: '32px', margin: '0 auto' }}></div>
-          </div>
-        )}
+        <p className="home-subtitle">基于 ONNX Runtime Web 的 AI 应用工具箱（支持 Service Worker 缓存）</p>
       </div>
 
       <div className="apps-grid">

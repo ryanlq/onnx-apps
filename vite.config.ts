@@ -1,35 +1,99 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
-
-// Vite 插件：拦截 WASM 文件加载
-function excludeWasmPlugin() {
-  return {
-    name: 'exclude-wasm-plugin',
-    resolveId(id: string) {
-      // 拦截 WASM 文件的导入，返回 CDN URL
-      if (id.endsWith('.wasm') && id.includes('ort-wasm')) {
-        return {
-          id: id,
-          external: true
-        };
-      }
-    },
-    load(id: string) {
-      // 如果是 WASM 文件，返回 CDN URL
-      if (id.endsWith('.wasm') && id.includes('ort-wasm')) {
-        const filename = path.basename(id);
-        return `export default 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/${filename}'`;
-      }
-    }
-  };
-}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    excludeWasmPlugin()
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      manifest: {
+        name: 'ONNX Web 应用集合',
+        short_name: 'ONNX Apps',
+        description: '基于 ONNX Runtime Web 的 AI 应用工具箱',
+        theme_color: '#101010',
+        background_color: '#101010',
+        display: 'standalone',
+        icons: [
+          {
+            src: '/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: '/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
+      },
+      workbox: {
+        // 配置 WASM 文件的缓存策略
+        runtimeCaching: [
+          {
+            // 缓存 ONNX Runtime WASM 文件（从 CDN）
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/npm\/onnxruntime-web@.*\/.*\.wasm$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'onnx-wasm-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 天
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            // 缓存 ONNX Runtime JS wrapper 文件
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/npm\/onnxruntime-web@.*\/.*\.(js|mjs)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'onnx-js-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              }
+            }
+          },
+          {
+            // 缓存 Hugging Face 模型文件
+            urlPattern: /^https:\/\/huggingface\.co\/.*\/.*\.ort$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'onnx-models-cache',
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            // 缓存图片和其他静态资源
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images-cache',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              }
+            }
+          }
+        ]
+      },
+      devOptions: {
+        enabled: true, // 开发环境也启用 Service Worker
+        type: 'module'
+      }
+    })
   ],
   resolve: {
     alias: {
@@ -37,8 +101,8 @@ export default defineConfig({
       'onnxruntime-web': path.resolve(__dirname, 'node_modules/onnxruntime-web')
     }
   },
-  // 仅包含 ONNX 模型文件，排除 WASM 文件（WASM 将从 CDN 动态加载）
-  assetsInclude: ['**/*.onnx'],
+  // 包含 ONNX 模型文件和 WASM 文件
+  assetsInclude: ['**/*.onnx', '**/*.wasm', '**/*.jsep.mjs'],
   optimizeDeps: {
     exclude: [
       // 排除：使用 CDN 加载
@@ -80,14 +144,6 @@ export default defineConfig({
   // 添加构建优化配置
   build: {
     rollupOptions: {
-      // 外部化 WASM 文件，不让 Rollup 处理它们
-      external: (id) => {
-        // 排除 onnxruntime-web 中的 WASM 文件引用
-        if (id && id.includes('ort-wasm') && id.endsWith('.wasm')) {
-          return true;
-        }
-        return false;
-      },
       output: {
         // 优化的代码分割策略
         manualChunks: (id) => {
@@ -101,7 +157,7 @@ export default defineConfig({
             return 'transformers';
           }
 
-          // ONNX Runtime：单独打包（虽然我们使用 CDN，但 JS wrapper 仍需要）
+          // ONNX Runtime：单独打包
           if (id.includes('onnxruntime-web')) {
             return 'onnxruntime';
           }
@@ -114,13 +170,7 @@ export default defineConfig({
         // 更好的 chunk 命名
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: (assetInfo) => {
-          // 排除 WASM 文件
-          if (assetInfo.name?.endsWith('.wasm')) {
-            return 'node_modules/[name][extname]';
-          }
-          return 'assets/[name]-[hash].[ext]';
-        }
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       }
     },
     // 启用 CSS 代码分割
