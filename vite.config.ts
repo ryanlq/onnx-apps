@@ -2,10 +2,34 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+// Vite 插件：拦截 WASM 文件加载
+function excludeWasmPlugin() {
+  return {
+    name: 'exclude-wasm-plugin',
+    resolveId(id: string) {
+      // 拦截 WASM 文件的导入，返回 CDN URL
+      if (id.endsWith('.wasm') && id.includes('ort-wasm')) {
+        return {
+          id: id,
+          external: true
+        };
+      }
+    },
+    load(id: string) {
+      // 如果是 WASM 文件，返回 CDN URL
+      if (id.endsWith('.wasm') && id.includes('ort-wasm')) {
+        const filename = path.basename(id);
+        return `export default 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/${filename}'`;
+      }
+    }
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    react()
+    react(),
+    excludeWasmPlugin()
   ],
   resolve: {
     alias: {
@@ -56,6 +80,14 @@ export default defineConfig({
   // 添加构建优化配置
   build: {
     rollupOptions: {
+      // 外部化 WASM 文件，不让 Rollup 处理它们
+      external: (id) => {
+        // 排除 onnxruntime-web 中的 WASM 文件引用
+        if (id && id.includes('ort-wasm') && id.endsWith('.wasm')) {
+          return true;
+        }
+        return false;
+      },
       output: {
         // 优化的代码分割策略
         manualChunks: (id) => {
@@ -82,7 +114,13 @@ export default defineConfig({
         // 更好的 chunk 命名
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        assetFileNames: (assetInfo) => {
+          // 排除 WASM 文件
+          if (assetInfo.name?.endsWith('.wasm')) {
+            return 'node_modules/[name][extname]';
+          }
+          return 'assets/[name]-[hash].[ext]';
+        }
       }
     },
     // 启用 CSS 代码分割
