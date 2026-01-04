@@ -31,6 +31,9 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // 增加最大缓存文件大小限制（opencv.js 约 8.5MB + WASM 约 21MB）
+        maximumFileSizeToCacheInBytes: 30 * 1024 * 1024, // 30 MB
+
         // 配置 WASM 文件的缓存策略
         runtimeCaching: [
           {
