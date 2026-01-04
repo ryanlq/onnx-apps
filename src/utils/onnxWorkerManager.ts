@@ -67,11 +67,12 @@ class ONNXWorkerManager {
       this.proxy = createOnnxWorkerProxy(this.worker);
 
       await this.proxy.initialize({
-        executionProviders: ['wasm']
+        executionProviders: ['wasm'],
+        useIndexedDBWasm: true  // 启用 IndexedDB WASM 缓存
       });
 
       this.initialized = true;
-      console.log('[ONNXWorkerManager] ✅ 全局 Worker 初始化完成');
+      console.log('[ONNXWorkerManager] ✅ 全局 Worker 初始化完成（使用 IndexedDB WASM 缓存）');
     } catch (error) {
       console.error('[ONNXWorkerManager] ❌ 初始化失败:', error);
       this.initializingPromise = null;

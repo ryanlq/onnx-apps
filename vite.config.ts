@@ -13,11 +13,13 @@ export default defineConfig({
       'onnxruntime-web': path.resolve(__dirname, 'node_modules/onnxruntime-web')
     }
   },
-  assetsInclude: ['**/*.onnx', '**/*.wasm', '**/*.jsep.mjs'],
+  // 仅包含 ONNX 模型文件，排除 WASM 文件（WASM 将从 CDN 动态加载）
+  assetsInclude: ['**/*.onnx'],
   optimizeDeps: {
     exclude: [
-      // 排除项目中的 onnxruntime-web
+      // 排除：使用 CDN 加载
       'onnxruntime-web',
+      // 排除：自定义框架
       'onnx-web-framework',
       'onnx-web-framework/worker'
     ],
@@ -54,17 +56,38 @@ export default defineConfig({
   // 添加构建优化配置
   build: {
     rollupOptions: {
-      // 不要 external onnxruntime-web，让它被打包进 bundle
       output: {
-        // 将 transformers 相关代码分离到单独的 chunk
-        manualChunks: {
-          'transformers': ['@huggingface/transformers'],
-          // 其他 vendor 代码
-          'vendor': ['react', 'react-dom', 'react-toastify'],
-          // ONNX runtime 单独 chunk
-          'onnxruntime': ['onnxruntime-web']
-        }
+        // 优化的代码分割策略
+        manualChunks: (id) => {
+          // Vendor 库：React 生态
+          if (id.includes('react') || id.includes('react-dom') || id.includes('react-toastify')) {
+            return 'vendor';
+          }
+
+          // Transformers：单独打包
+          if (id.includes('@huggingface/transformers')) {
+            return 'transformers';
+          }
+
+          // ONNX Runtime：单独打包（虽然我们使用 CDN，但 JS wrapper 仍需要）
+          if (id.includes('onnxruntime-web')) {
+            return 'onnxruntime';
+          }
+
+          // OpenCV：单独打包
+          if (id.includes('opencv-ts')) {
+            return 'opencv';
+          }
+        },
+        // 更好的 chunk 命名
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       }
-    }
+    },
+    // 启用 CSS 代码分割
+    cssCodeSplit: true,
+    // 设置 chunk 大小警告阈值
+    chunkSizeWarningLimit: 1000
   }
 })
