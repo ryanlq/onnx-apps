@@ -11,7 +11,9 @@
     "upload:r2": "node scripts/upload-r2.js",
     "upload:hf": "node scripts/upload-hf-with-token.js",
     "upload:hf:py": "python scripts/upload-hf-with-token.py",
-    "switch-dep": "node switch-dependency.js"
+    "switch-dep": "node switch-dependency.js",
+    "deploy:cf": "pnpm run build && npx wrangler pages deploy dist --project-name=onnx-apps",
+    "deploy:cf:preview": "pnpm run build && npx wrangler pages deploy dist --project-name=onnx-apps --branch=preview"
   },
   "dependencies": {
     "@huggingface/transformers": "3.8.1",
