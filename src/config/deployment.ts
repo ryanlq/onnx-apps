@@ -6,7 +6,7 @@
 
 export interface DeploymentConfig {
   // 模型来源类型
-  modelSource: 'local' | 'r2' | 'cdn';
+  modelSource: "local" | "r2" | "cdn";
   // R2 或 CDN 的基础 URL
   modelBaseUrl?: string;
   // 可用的模型列表
@@ -23,21 +23,22 @@ export interface DeploymentConfig {
  */
 export function getDeploymentConfig(): DeploymentConfig {
   // 从环境变量读取配置
-  const modelBaseUrl = import.meta.env.VITE_MODEL_BASE_URL || '';
+  const modelBaseUrl = import.meta.env.VITE_MODEL_BASE_URL || "";
 
   // 判断是否使用远程存储
   const useRemoteStorage = Boolean(modelBaseUrl);
 
   return {
-    modelSource: useRemoteStorage ? 'r2' : 'local',
+    modelSource: useRemoteStorage ? "r2" : "local",
     modelBaseUrl: useRemoteStorage ? modelBaseUrl : undefined,
     // 根据实际情况列出你的模型
     availableModels: [
-      'rmbg_quantized.ort',
-      'migan_pipeline_v2.ort',
-      'whisper-base-ONNX',
+      "rmbg_quantized.ort",
+      "migan_pipeline_v2.ort",
+      "whisper-base-ONNX",
+      "RealESR_Gx4_fp16.ort", // Real-ESRGAN 图像增强
       // 添加其他小模型...
-    ]
+    ],
   };
 }
 
@@ -47,7 +48,7 @@ export function getDeploymentConfig(): DeploymentConfig {
 export function getModelUrl(modelName: string): string {
   const config = getDeploymentConfig();
 
-  if (config.modelSource === 'r2' && config.modelBaseUrl) {
+  if (config.modelSource === "r2" && config.modelBaseUrl) {
     // 使用 R2 或 CDN
     return `${config.modelBaseUrl}/${modelName}`;
   }
@@ -65,12 +66,13 @@ export function isModelAvailable(modelName: string): boolean {
   const config = getDeploymentConfig();
 
   // 如果是本地模式，检查文件大小
-  if (config.modelSource === 'local') {
+  if (config.modelSource === "local") {
     // 建议只加载小于 25MB 的模型
     const smallModels = [
-      'rmbg_quantized.ort',
-      'migan_pipeline_v2.ort',
-      'whisper-base-ONNX',
+      "rmbg_quantized.ort",
+      "migan_pipeline_v2.ort",
+      "whisper-base-ONNX",
+      "RealESR_Gx4_fp16.ort", // 5.05 MB
     ];
     return smallModels.includes(modelName);
   }
@@ -84,9 +86,10 @@ export function isModelAvailable(modelName: string): boolean {
  */
 export function getModelDisplayName(modelName: string): string {
   const displayNames: Record<string, string> = {
-    'rmbg_quantized.ort': '背景移除 (RMBG)',
-    'migan_pipeline_v2.ort': '图像修复 (MI-GAN)',
-    'whisper-base-ONNX': '语音识别 (Whisper)',
+    "rmbg_quantized.ort": "背景移除 (RMBG)",
+    "migan_pipeline_v2.ort": "图像修复 (MI-GAN)",
+    "whisper-base-ONNX": "语音识别 (Whisper)",
+    "RealESR_Gx4_fp16.ort": "图像增强 (Real-ESRGAN)",
   };
 
   return displayNames[modelName] || modelName;

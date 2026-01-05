@@ -5,13 +5,19 @@
  */
 
 // 必须在最开始导入配置
-import '../utils/transformersConfig';
+import "../utils/transformersConfig";
 
-import { useRef, useState, useEffect } from 'react';
-import { ToastContainer, toast } from 'react-toastify';
-import AppHeader from '../components/AppHeader';
-import './WhisperApp.css';
-import { transcribe, SUPPORTED_LANGUAGES, AVAILABLE_MODELS, type WhisperOptions, disposeModel } from '../adapters/whisper-adapter';
+import { useRef, useState, useEffect } from "react";
+import { ToastContainer, toast } from "react-toastify";
+import AppHeader from "../components/AppHeader";
+import "./WhisperApp.css";
+import {
+  transcribe,
+  SUPPORTED_LANGUAGES,
+  AVAILABLE_MODELS,
+  type WhisperOptions,
+  disposeModel,
+} from "../adapters/whisper-adapter";
 
 interface WhisperAppProps {
   onBack: () => void;
@@ -19,19 +25,23 @@ interface WhisperAppProps {
 
 export default function WhisperApp({ onBack }: WhisperAppProps) {
   const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string>('');
+  const [audioUrl, setAudioUrl] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
-  const [transcript, setTranscript] = useState<string>('');
-  const [chunks, setChunks] = useState<Array<{ text: string; timestamp: [number, number | null] }>>([]);
+  const [transcript, setTranscript] = useState<string>("");
+  const [chunks, setChunks] = useState<
+    Array<{ text: string; timestamp: [number, number | null] }>
+  >([]);
   const [loadingProgress, setLoadingProgress] = useState<number>(0);
-  const [loadingFile, setLoadingFile] = useState<string>('');
+  const [loadingFile, setLoadingFile] = useState<string>("");
   const [isInitialized, setIsInitialized] = useState(false);
 
   // 设置选项
-  const [language, setLanguage] = useState<string>('zh');
-  const [model, setModel] = useState<WhisperOptions['model']>('Xenova/whisper-tiny');
-  const [task, setTask] = useState<WhisperOptions['task']>('transcribe');
+  const [language, setLanguage] = useState<string>("zh");
+  const [model, setModel] = useState<WhisperOptions["model"]>(
+    "Xenova/whisper-tiny",
+  );
+  const [task, setTask] = useState<WhisperOptions["task"]>("transcribe");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -41,11 +51,11 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
     const initTransformers = async () => {
       try {
         // 动态导入以触发初始化
-        await import('@huggingface/transformers');
-        console.log('[WhisperApp] Transformers.js loaded');
+        await import("@huggingface/transformers");
+        console.log("[WhisperApp] Transformers.js loaded");
         setIsInitialized(true);
       } catch (error) {
-        console.error('[WhisperApp] Failed to load Transformers.js:', error);
+        console.error("[WhisperApp] Failed to load Transformers.js:", error);
       }
     };
 
@@ -58,8 +68,8 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
   }, []);
 
   const handleFileSelect = (file: File) => {
-    if (!file || !file.type.startsWith('audio/')) {
-      toast.error('请选择音频文件');
+    if (!file || !file.type.startsWith("audio/")) {
+      toast.error("请选择音频文件");
       return;
     }
 
@@ -70,7 +80,7 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
     setAudioUrl(url);
 
     // 重置状态
-    setTranscript('');
+    setTranscript("");
     setChunks([]);
   };
 
@@ -91,26 +101,31 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
 
   const handleTranscribe = async () => {
     if (!audioFile) {
-      toast.error('请先上传音频文件');
+      toast.error("请先上传音频文件");
       return;
     }
 
     if (!isInitialized) {
-      toast.error('正在初始化，请稍候...');
+      toast.error("正在初始化，请稍候...");
       return;
     }
 
     setIsProcessing(true);
     setIsModelLoading(true);
     setLoadingProgress(0);
-    setTranscript('');
+    setTranscript("");
     setChunks([]);
 
     try {
-      toast.info('⏳ 正在加载模型...');
+      toast.info("⏳ 正在加载模型...");
 
-      console.log('[WhisperApp] Starting transcription with model:', model);
-      console.log('[WhisperApp] Audio file:', audioFile.name, audioFile.size, 'bytes');
+      console.log("[WhisperApp] Starting transcription with model:", model);
+      console.log(
+        "[WhisperApp] Audio file:",
+        audioFile.name,
+        audioFile.size,
+        "bytes",
+      );
 
       const result = await transcribe(audioFile, {
         model,
@@ -125,17 +140,19 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
         onUpdate: (text, newChunks) => {
           setTranscript(text);
           setChunks(newChunks);
-          console.log('[WhisperApp] Update:', text.substring(0, 50) + '...');
-        }
+          console.log("[WhisperApp] Update:", text.substring(0, 50) + "...");
+        },
       });
 
       setTranscript(result.text);
       setChunks(result.chunks);
 
-      toast.success('✅ 转录完成！');
+      toast.success("✅ 转录完成！");
     } catch (error) {
-      console.error('[WhisperApp] Transcription error:', error);
-      toast.error(`转录失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      console.error("[WhisperApp] Transcription error:", error);
+      toast.error(
+        `转录失败: ${error instanceof Error ? error.message : "未知错误"}`,
+      );
     } finally {
       setIsProcessing(false);
       setIsModelLoading(false);
@@ -146,9 +163,9 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
   const downloadTranscript = () => {
     if (!transcript) return;
 
-    const blob = new Blob([transcript], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([transcript], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = `transcript_${Date.now()}.txt`;
     link.click();
@@ -160,12 +177,12 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
     }
-    setAudioUrl('');
-    setTranscript('');
+    setAudioUrl("");
+    setTranscript("");
     setChunks([]);
     setLoadingProgress(0);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -173,17 +190,18 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
     <div className="app-container">
       <AppHeader
-        title="语音识别 (Whisper)"
+        title="语音识别"
         icon="🎤"
         onBack={onBack}
         actions={
-          audioFile && !isProcessing && (
+          audioFile &&
+          !isProcessing && (
             <>
               <button
                 className="app-header-btn app-header-btn-secondary"
@@ -207,13 +225,16 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
       <div className="app-content">
         {!audioFile ? (
           <div className="whisper-upload-section">
-            <div className="upload-notice" style={{
-              padding: '2px',
-              borderRadius: '5px',
-              marginBottom: '5px',
-              textAlign: 'center',
-              fontSize: '12px'
-            }}>
+            <div
+              className="upload-notice"
+              style={{
+                padding: "2px",
+                borderRadius: "5px",
+                marginBottom: "5px",
+                textAlign: "center",
+                fontSize: "12px",
+              }}
+            >
               ✨ <strong>本地运行，不会上传您的音频文件</strong>
             </div>
             <div
@@ -225,7 +246,8 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
               <div className="whisper-upload-icon">🎤</div>
               <div className="whisper-upload-text">点击上传音频文件</div>
               <div className="whisper-upload-subtext">
-                支持 WAV, MP3, M4A, OGG 等格式<br />
+                支持 WAV, MP3, M4A, OGG 等格式
+                <br />
                 或拖拽音频文件到这里
               </div>
               <input
@@ -233,7 +255,7 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
                 type="file"
                 onChange={handleFileInputChange}
                 accept="audio/*"
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
               />
             </div>
 
@@ -246,7 +268,9 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
                   onChange={(e) => setLanguage(e.target.value)}
                 >
                   {Object.entries(SUPPORTED_LANGUAGES).map(([code, name]) => (
-                    <option key={code} value={code}>{name}</option>
+                    <option key={code} value={code}>
+                      {name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -290,7 +314,7 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
                 {Object.entries(AVAILABLE_MODELS).map(([key, info]) => (
                   <div
                     key={key}
-                    className={`whisper-model-table-row ${model === key ? 'active' : ''}`}
+                    className={`whisper-model-table-row ${model === key ? "active" : ""}`}
                     onClick={() => setModel(key as typeof model)}
                   >
                     <span>{info.name}</span>
@@ -324,7 +348,12 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
                   🎙️ 开始转录
                 </button>
                 <p className="whisper-hint">
-                  首次使用需要下载模型文件 ({AVAILABLE_MODELS[model as keyof typeof AVAILABLE_MODELS].size})
+                  首次使用需要下载模型文件 (
+                  {
+                    AVAILABLE_MODELS[model as keyof typeof AVAILABLE_MODELS]
+                      .size
+                  }
+                  )
                 </p>
               </div>
             )}
@@ -333,9 +362,7 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
             {(isProcessing || isModelLoading) && (
               <div className="whisper-loading">
                 <div className="whisper-spinner"></div>
-                <h3>
-                  {isModelLoading ? '加载模型中...' : '转录中...'}
-                </h3>
+                <h3>{isModelLoading ? "加载模型中..." : "转录中..."}</h3>
                 {loadingProgress > 0 && (
                   <div className="whisper-progress">
                     <div className="whisper-progress-bar">
@@ -367,7 +394,7 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
                     <button
                       className="whisper-action-button"
                       onClick={() => {
-                        setTranscript('');
+                        setTranscript("");
                         setChunks([]);
                       }}
                     >
@@ -382,9 +409,13 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
                         <div key={index} className="whisper-chunk">
                           <span className="whisper-chunk-time">
                             [{formatTime(chunk.timestamp[0])}
-                            {chunk.timestamp[1] !== null ? ` - ${formatTime(chunk.timestamp[1])}]` : ']'}
+                            {chunk.timestamp[1] !== null
+                              ? ` - ${formatTime(chunk.timestamp[1])}]`
+                              : "]"}
                           </span>
-                          <span className="whisper-chunk-text">{chunk.text}</span>
+                          <span className="whisper-chunk-text">
+                            {chunk.text}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -397,7 +428,9 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
                 <div className="whisper-stats">
                   <div className="whisper-stat">
                     <span className="whisper-stat-label">字符数:</span>
-                    <span className="whisper-stat-value">{transcript.length}</span>
+                    <span className="whisper-stat-value">
+                      {transcript.length}
+                    </span>
                   </div>
                   <div className="whisper-stat">
                     <span className="whisper-stat-label">片段数:</span>
@@ -407,7 +440,9 @@ export default function WhisperApp({ onBack }: WhisperAppProps) {
                     <div className="whisper-stat">
                       <span className="whisper-stat-label">总时长:</span>
                       <span className="whisper-stat-value">
-                        {formatTime(chunks[chunks.length - 1].timestamp[1] || 0)}
+                        {formatTime(
+                          chunks[chunks.length - 1].timestamp[1] || 0,
+                        )}
                       </span>
                     </div>
                   )}
