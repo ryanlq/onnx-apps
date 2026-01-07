@@ -8,6 +8,7 @@ const RMBGAppWorker = lazy(() => import("./pages/RMBGApp"));
 const MIGANAppSimple = lazy(() => import("./pages/MIGANApp"));
 const WhisperApp = lazy(() => import("./pages/WhisperApp"));
 const RealESRGANApp = lazy(() => import("./pages/RealESRGANApp"));
+const WaterRemovalReader = lazy(() => import("./pages/WaterRemovalReader"));
 
 // 加载状态组件
 function AppLoader() {
@@ -57,6 +58,15 @@ const apps: AppItem[] = [
     icon: "🔍",
     component: RealESRGANApp,
     category: "image",
+    badge: "NEW",
+  },
+  {
+    id: "water-removal",
+    title: "去水阅读",
+    description: "AI 小说去水，智能提取核心情节 📖",
+    icon: "📖",
+    component: WaterRemovalReader,
+    category: "other",
     badge: "NEW",
   },
   {

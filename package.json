@@ -18,7 +18,8 @@
   "dependencies": {
     "@huggingface/transformers": "3.8.1",
     "@img-comparison-slider/react": "^8.0.2",
-    "onnx-web-framework": "github:ryanlq/onnx-web-framework-package#v2.0.0",
+    "epubjs": "^0.3.93",
+    "onnx-web-framework": "github:ryanlq/onnx-web-framework-package#v2.1.0",
     "onnxruntime-web": "1.22.0-dev.20250409-89f8206ba4",
     "p-queue": "^9.0.1",
     "react": "^19.2.0",

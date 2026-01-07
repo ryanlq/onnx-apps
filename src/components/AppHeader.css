@@ -110,6 +110,24 @@
   cursor: not-allowed;
 }
 
+/* 章节导航按钮更紧凑 */
+.app-header-btn.app-header-btn-secondary {
+  padding: 6px 10px;
+  min-width: 36px;
+}
+
+/* 模式切换按钮 */
+.app-header-btn[title*="切换"] {
+  padding: 6px 12px;
+  min-width: 48px;
+}
+
+/* 设置按钮 */
+.app-header-btn[title="高级设置"] {
+  padding: 6px 10px;
+  min-width: 36px;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .app-header {

@@ -6,11 +6,23 @@ interface AppHeaderProps {
   icon?: string;
   actions?: React.ReactNode;
   onBack?: () => void;
+  className?: string; // 自定义 CSS 类名
+  style?: React.CSSProperties; // 自定义内联样式
 }
 
-const AppHeader: React.FC<AppHeaderProps> = ({ title, icon, actions, onBack }) => {
+const AppHeader: React.FC<AppHeaderProps> = ({
+  title,
+  icon,
+  actions,
+  onBack,
+  className = "",
+  style = {}
+}) => {
   return (
-    <div className="app-header">
+    <div
+      className={`app-header ${className}`.trim()}
+      style={style}
+    >
       <div className="app-header-left">
         {onBack && (
           <button className="app-header-back-btn" onClick={onBack} aria-label="返回首页">
