@@ -108,7 +108,7 @@ async function tokenize(text: string): Promise<number[]> {
 }
 
 /**
- * 使用本地 tokenizer.json 进行分词（简化版）
+ * 使用本地 tokenizer.json 进行分词（改进版：使用 Bigram）
  */
 async function tokenizeWithLocalConfig(text: string): Promise<number[]> {
   try {
@@ -124,8 +124,23 @@ async function tokenizeWithLocalConfig(text: string): Promise<number[]> {
 
     const tokens = [clsTokenId];
 
-    // 简单的字符级分词
-    for (const char of text) {
+    // ✅ 改进：使用 Bigram 分词（保留部分词组合语义）
+    // 对中文来说，Bigram 可以保留像"来福"、"黄来" 这样的词组合
+    for (let i = 0; i < text.length; i++) {
+      // 尝试使用二元组（当前字符 + 下一个字符）
+      if (i < text.length - 1) {
+        const bigram = text[i] + text[i + 1];
+        const bigramTokenId = vocab[bigram];
+
+        if (bigramTokenId !== undefined) {
+          // Bigram 存在于词汇表中
+          tokens.push(bigramTokenId);
+          continue; // 跳过单字符处理
+        }
+      }
+
+      // 降级到单字符
+      const char = text[i];
       const tokenId = vocab[char];
       tokens.push(tokenId !== undefined ? tokenId : unkTokenId);
     }

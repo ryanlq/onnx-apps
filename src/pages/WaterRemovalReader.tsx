@@ -11,6 +11,8 @@ import {
   scoreParagraphs,
   applyWaterRemovalMode,
   type WaterRemovalConfig,
+  WATER_REMOVAL_PRESETS,
+  WaterRemovalLevel,
 } from "../adapters/waterRemoval";
 import { parseEpub } from "../utils/epubParser";
 import "./WaterRemovalReader.css";
@@ -43,9 +45,11 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // 配置
-  const [keepThreshold, setKeepThreshold] = useState(0.7);
-  const [foldThreshold, setFoldThreshold] = useState(0.4);
+  const [waterRemovalLevel, setWaterRemovalLevel] = useState<keyof typeof WaterRemovalLevel>('MEDIUM'); // 档位选择
+  const [keepThreshold, setKeepThreshold] = useState(0.5);  // 降低默认值
+  const [foldThreshold, setFoldThreshold] = useState(0.25); // 降低默认值
   const [autoWaterRemoval, setAutoWaterRemoval] = useState(true); // 自动去水开关，默认开启
+  const [protectDialogue, setProtectDialogue] = useState(false); // 对话保护开关，默认关闭
 
   // 去水统计
   const [removalStats, setRemovalStats] = useState<{
@@ -105,11 +109,19 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
         setIsInitialized(true);
         toast.dismiss(loadingToast);
         toast.success("✅ 模型加载完成");
-
-        // 模型加载完成后，如果开启了自动去水且有章节，自动处理当前章节
+        console.log("[debug] 模型加载完成")
+        // 模型加载完成后，如果开启了自动去水且有章节，自动处理并显示第一章
         if (autoWaterRemoval && chapters.length > 0 && !autoProcessTriggeredRef.current) {
           autoProcessTriggeredRef.current = true;
-          await processChapter(currentChapter);
+          // ✅ 修复1: 点击并显示第一章，而不是currentChapter（可能是空的）
+
+          // ========== 🔍 调试2: 准备调用handleChapterChange ==========
+          console.log('[调试1] 模型加载完成，准备调用handleChapterChange(0)');
+          console.log('[调试1] 当前chapters.length:', chapters.length);
+          console.log('[调试1] chapters[0]:', chapters[0]);
+          console.log('[调试1] chapters[0].paragraphs:', chapters[0]?.paragraphs);
+
+          await handleChapterChange(0);
         }
       } catch (error) {
         toast.error(
@@ -119,7 +131,7 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
     };
 
     init();
-  }, []);
+  }, [settingsOpen, chapters, autoWaterRemoval]); // ✅ 修复：添加chapters和autoWaterRemoval依赖
 
   // ESC 键关闭设置弹窗
   useEffect(() => {
@@ -196,7 +208,7 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
       }
 
       setRawText(cleanedText);
-
+      
       // 为每个章节添加ID和空段落数组
       const chaptersWithParagraphs: Chapter[] = chapterData.map(
         (chap, idx) => ({
@@ -208,7 +220,20 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
       );
 
       setChapters(chaptersWithParagraphs);
-      setCurrentChapter(0);
+
+      // ========== 🔍 调试1: setChapters后 ==========
+      console.log('[调试1] setChapters后 - chaptersWithParagraphs:', chaptersWithParagraphs);
+      console.log('[调试1] chaptersWithParagraphs.length:', chaptersWithParagraphs.length);
+      console.log('[调试1] chaptersWithParagraphs[0]:', chaptersWithParagraphs[0]);
+
+      // ✅ 修复4: 移除handleChapterChange，直接使用初始化显示逻辑
+      // if (isInitialized && autoWaterRemoval) {
+      //   setTimeout(() => {
+      //     processChapter(0);
+      //   }, 100);
+      // }
+
+      console.log("[debug] 正文显示")
 
       // 初始化第一章的段落显示（使用本地数据，不依赖状态更新）
       if (chaptersWithParagraphs.length > 0) {
@@ -242,7 +267,7 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
   };
 
   // 处理单个章节
-  const processChapter = async (chapterIndex: number) => {
+  const processChapter = async (chapterIndex: number, skipToast: boolean = false) => {
     console.log("[debug] chapterIndex: ",chapterIndex)
     if (chapters.length === 0) return;
 
@@ -279,6 +304,7 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
         foldThreshold,
         windowSize: 5,
         minParagraphLength: 20,
+        protectDialogue, // 添加对话保护选项
       };
 
       const scores = await scoreParagraphs(paras, config, (current, total) => {
@@ -328,12 +354,15 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
         removalRate,
       });
 
-      toast.success(
-        `✅ 处理完成！\n保留 ${visibleSet.size}/${paras.length} 段（${Math.round((visibleSet.size / paras.length) * 100)}%）\n字数：${keptWordCount}/${originalWordCount} 字（减少 ${removalRate}%）`,
-        {
-          autoClose: 5000,
-        },
-      );
+      // ✅ 修复2: 批量处理时跳过toast
+      if (!skipToast) {
+        toast.success(
+          `✅ 处理完成！\n保留 ${visibleSet.size}/${paras.length} 段（${Math.round((visibleSet.size / paras.length) * 100)}%）\n字数：${keptWordCount}/${originalWordCount} 字（减少 ${removalRate}%）`,
+          {
+            autoClose: 5000,
+          },
+        );
+      }
     } catch (error) {
       toast.error(
         `处理失败: ${error instanceof Error ? error.message : "未知错误"}`,
@@ -379,6 +408,92 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
     setVisibleParagraphs(visibleSet);
   };
 
+  // 重新处理当前章节（用于档位切换后）
+  const reprocessCurrentChapter = async (newKeepThreshold: number, newFoldThreshold: number) => {
+    if (currentChapter === null) return;
+
+    setIsProcessing(true);
+    setProgress(0);
+    setRemovalStats(null);
+
+    try {
+      const chapter = chapters[currentChapter];
+      if (!chapter || !chapter.content) return;
+
+      // 1. 分段
+      const paras = splitIntoParagraphs(chapter.content);
+
+      // 2. 使用传入的新阈值配置重新评分（而非依赖状态）
+      const config: WaterRemovalConfig = {
+        keepThreshold: newKeepThreshold,
+        foldThreshold: newFoldThreshold,
+        windowSize: 5,
+        minParagraphLength: 20,
+        protectDialogue,
+      };
+
+      const scores = await scoreParagraphs(paras, config, (current, total) => {
+        const prog = Math.round((current / total) * 100);
+        setProgress(prog);
+      });
+
+      // 3. 应用当前模式
+      const visibility = applyWaterRemovalMode(paras, scores, readMode);
+      const visibleSet = new Set(
+        visibility.filter((v) => v.visible).map((v) => v.id),
+      );
+
+      // 更新章节段落数据
+      const updatedChapters = [...chapters];
+      updatedChapters[currentChapter] = {
+        ...chapter,
+        paragraphs: paras.map((para, idx) => ({
+          ...para,
+          score: scores.scores[idx],
+          visible: visibleSet.has(para.id),
+        })),
+      };
+      setChapters(updatedChapters);
+      setParagraphs(updatedChapters[currentChapter].paragraphs);
+      setVisibleParagraphs(visibleSet);
+
+      // 计算去水后的字数
+      const originalWordCount = paras.reduce((sum, p) => sum + p.text.length, 0);
+      const keptWordCount = paras
+        .filter((p) => visibleSet.has(p.id))
+        .reduce((sum, p) => sum + p.text.length, 0);
+
+      const removedWordCount = originalWordCount - keptWordCount;
+      const removalRate = Math.round((removedWordCount / originalWordCount) * 100);
+
+      // 更新统计信息
+      setRemovalStats({
+        originalParagraphs: paras.length,
+        keptParagraphs: visibleSet.size,
+        removedParagraphs: paras.length - visibleSet.size,
+        originalWords: originalWordCount,
+        keptWords: keptWordCount,
+        removedWords: removedWordCount,
+        removalRate,
+      });
+
+      toast.success(
+        `✅ 档位应用完成！\n保留 ${visibleSet.size}/${paras.length} 段（${Math.round((visibleSet.size / paras.length) * 100)}%）\n字数：${keptWordCount}/${originalWordCount} 字（减少 ${removalRate}%）`,
+        {
+          autoClose: 5000,
+        },
+      );
+    } catch (error) {
+      toast.error(
+        `重新处理失败: ${error instanceof Error ? error.message : "未知错误"}`,
+      );
+      console.error(error);
+    } finally {
+      setIsProcessing(false);
+      setProgress(0);
+    }
+  };
+
   // 切换章节
   const handleChapterChange = async (index: number) => {
     setCurrentChapter(index);
@@ -387,7 +502,16 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
     // 重置统计信息
     setRemovalStats(null);
 
-    if (chapter.paragraphs && chapter.paragraphs.length > 0) {
+    // ✅ 修复3：检查章节是否已处理（必须有去水评分数据）
+    console.log("[debug] chapters:",chapters)
+    console.log("[debug] chapter:",chapter)
+    if(!chapter) return ;
+    const hasProcessedData =
+      chapter.paragraphs &&
+      chapter.paragraphs.length > 0 &&
+      chapter.paragraphs.some((p: any) => p.score !== undefined);
+
+    if (hasProcessedData) {
       // 章节已处理，显示已有数据
       setParagraphs(chapter.paragraphs);
       const visibleSet = new Set(
@@ -416,8 +540,9 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
       setParagraphs([]);
       setVisibleParagraphs(new Set());
 
-      // 如果开启了自动去水，自动处理
-      if (autoWaterRemoval && isInitialized) {
+      // ✅ 修复5: 首次显示时，如果自动去水开启且章节未处理，则自动去水
+      if (autoWaterRemoval && isInitialized && !hasProcessedData) {
+        console.log("[debug] 首次显示，触发自动去水 - 章节", index);
         await processChapter(index);
       } else {
         // 否则初始化章节显示（不进行去水）
@@ -499,7 +624,8 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
 
         try {
           setCurrentChapter(i);
-          await processChapter(i);
+          // ✅ 修复2: 传递true跳过toast
+          await processChapter(i, true);
           successCount++;
         } catch (error) {
           console.error(`章节 ${i + 1} 处理失败:`, error);
@@ -639,6 +765,27 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
                 {/* 分隔线 */}
                 <div className="header-divider"></div>
 
+                {/* ✅ 修复1: 批量处理和导出按钮 */}
+                <button
+                  className="app-header-btn app-header-btn-secondary"
+                  onClick={handleBatchProcess}
+                  disabled={batchProcessing || chapters.length === 0}
+                  title="批量处理所有章节"
+                  style={{ marginLeft: '8px' }}
+                >
+                  {batchProcessing ? "🔄 处理中..." : "📥 批量处理"}
+                </button>
+
+                <button
+                  className="app-header-btn app-header-btn-secondary"
+                  onClick={handleExport}
+                  disabled={chapters.length === 0}
+                  title="导出去水后的文本"
+                  style={{ marginLeft: '4px' }}
+                >
+                  📤 导出
+                </button>
+
                 {/* 目录按钮 */}
                 <button
                   className="app-header-btn app-header-btn-secondary"
@@ -648,8 +795,8 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
                   📑目录({chapters.length})
                 </button>
 
-                {/* 处理按钮 */}
-                {!isProcessing && (
+                {/* ✅ 修复2: 移除冗余的"处理"按钮 (自动去水是核心功能) */}
+                {/* {!isProcessing && (
                   <button
                     className="app-header-btn app-header-btn-primary"
                     onClick={handleProcess}
@@ -658,7 +805,7 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
                   >
                     🧠 处理
                   </button>
-                )}
+                )} */}
 
                 {/* 模式切换 */}
                 {paragraphs.length > 0 && (
@@ -823,47 +970,87 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
                       </div>
                     </div>
 
-                    {/* 阈值预设 */}
+                    {/* 去水强度档位选择 */}
                     <div className="setting-item setting-item-full">
                       <label className="setting-label">
-                        <span>去水强度预设</span>
+                        <span>去水强度档位</span>
                       </label>
-                      <div className="threshold-presets">
+                      <div className="level-selector">
                         <button
-                          className={`preset-btn ${
-                            keepThreshold >= 0.8 ? "active" : ""
-                          }`}
-                          onClick={() => {
-                            setKeepThreshold(0.8);
-                            setFoldThreshold(0.5);
-                            toast.info("已切换为轻度去水");
+                          className={`level-btn ${waterRemovalLevel === 'LIGHT' ? 'active' : ''}`}
+                          onClick={async () => {
+                            // ✅ 修复：使用正确的key访问preset（bracket notation）
+                            const preset = WATER_REMOVAL_PRESETS[WaterRemovalLevel.LIGHT];
+                            setWaterRemovalLevel('LIGHT');
+                            setKeepThreshold(preset.keepThreshold);
+                            setFoldThreshold(preset.foldThreshold);
+                            toast.info('已切换为轻度去水');
+
+                            // ✅ 关键修复：传递新阈值参数给重新处理函数
+                            if (currentChapter !== null && chapters[currentChapter]?.paragraphs?.length > 0) {
+                              await reprocessCurrentChapter(preset.keepThreshold, preset.foldThreshold);
+                            }
                           }}
                         >
-                          轻度
+                          🍃 轻度
+                          <span className="level-desc">保守模式</span>
                         </button>
                         <button
-                          className={`preset-btn ${
-                            keepThreshold >= 0.6 && keepThreshold < 0.8 ? "active" : ""
-                          }`}
-                          onClick={() => {
-                            setKeepThreshold(0.7);
-                            setFoldThreshold(0.4);
-                            toast.info("已切换为中度去水");
+                          className={`level-btn ${waterRemovalLevel === 'MEDIUM' ? 'active' : ''}`}
+                          onClick={async () => {
+                            // ✅ 修复：使用正确的key访问preset（bracket notation）
+                            const preset = WATER_REMOVAL_PRESETS[WaterRemovalLevel.MEDIUM];
+                            setWaterRemovalLevel('MEDIUM');
+                            setKeepThreshold(preset.keepThreshold);
+                            setFoldThreshold(preset.foldThreshold);
+                            toast.info('已切换为中度去水');
+
+                            // ✅ 关键修复：传递新阈值参数给重新处理函数
+                            if (currentChapter !== null && chapters[currentChapter]?.paragraphs?.length > 0) {
+                              await reprocessCurrentChapter(preset.keepThreshold, preset.foldThreshold);
+                            }
                           }}
                         >
-                          中度
+                          ⚖️ 中度
+                          <span className="level-desc">平衡模式</span>
                         </button>
                         <button
-                          className={`preset-btn ${
-                            keepThreshold < 0.6 ? "active" : ""
-                          }`}
-                          onClick={() => {
-                            setKeepThreshold(0.5);
-                            setFoldThreshold(0.3);
-                            toast.info("已切换为重度去水");
+                          className={`level-btn ${waterRemovalLevel === 'HEAVY' ? 'active' : ''}`}
+                          onClick={async () => {
+                            // ✅ 修复：使用正确的key访问preset（bracket notation）
+                            const preset = WATER_REMOVAL_PRESETS[WaterRemovalLevel.HEAVY];
+                            setWaterRemovalLevel('HEAVY');
+                            setKeepThreshold(preset.keepThreshold);
+                            setFoldThreshold(preset.foldThreshold);
+                            toast.info('已切换为重度去水');
+
+                            // ✅ 关键修复：传递新阈值参数给重新处理函数
+                            if (currentChapter !== null && chapters[currentChapter]?.paragraphs?.length > 0) {
+                              await reprocessCurrentChapter(preset.keepThreshold, preset.foldThreshold);
+                            }
                           }}
                         >
-                          重度
+                          🔥 重度
+                          <span className="level-desc">激进模式</span>
+                        </button>
+                        <button
+                          className={`level-btn ${waterRemovalLevel === 'EXTREME' ? 'active' : ''}`}
+                          onClick={async () => {
+                            // ✅ 修复：使用正确的key访问preset（bracket notation）
+                            const preset = WATER_REMOVAL_PRESETS[WaterRemovalLevel.EXTREME];
+                            setWaterRemovalLevel('EXTREME');
+                            setKeepThreshold(preset.keepThreshold);
+                            setFoldThreshold(preset.foldThreshold);
+                            toast.info('已切换为极限去水');
+
+                            // ✅ 关键修复：传递新阈值参数给重新处理函数
+                            if (currentChapter !== null && chapters[currentChapter]?.paragraphs?.length > 0) {
+                              await reprocessCurrentChapter(preset.keepThreshold, preset.foldThreshold);
+                            }
+                          }}
+                        >
+                          💥 极限
+                          <span className="level-desc">最大压缩</span>
                         </button>
                       </div>
                     </div>
@@ -876,6 +1063,16 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
                           onChange={(e) => setAutoWaterRemoval(e.target.checked)}
                         />
                         <span>自动去水（切换章节时自动处理）</span>
+                      </label>
+                    </div>
+                    <div className="setting-item">
+                      <label className="setting-label">
+                        <input
+                          type="checkbox"
+                          checked={protectDialogue}
+                          onChange={(e) => setProtectDialogue(e.target.checked)}
+                        />
+                        <span>保护对话段落（保留对话内容）</span>
                       </label>
                     </div>
                     <div className="setting-item">
@@ -909,8 +1106,8 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
                       </label>
                     </div>
 
-                    {/* 批量处理和导出 */}
-                    <div className="setting-item setting-item-full">
+                    {/* ✅ 修复1: 批量处理和导出按钮已移到主界面AppHeader */}
+                    {/* <div className="setting-item setting-item-full">
                       <div className="batch-actions">
                         <button
                           className="setting-btn setting-btn-primary"
@@ -927,7 +1124,7 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
                           📤 导出结果
                         </button>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </div>

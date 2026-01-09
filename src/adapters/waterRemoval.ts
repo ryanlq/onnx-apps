@@ -22,13 +22,58 @@ export interface WaterRemovalConfig {
   foldThreshold: number; // 折叠阈值
   windowSize: number; // 滑动窗口大小
   minParagraphLength: number; // 最小段落长度
+  protectDialogue: boolean; // 是否保护对话段落
 }
 
 export const DEFAULT_CONFIG: WaterRemovalConfig = {
-  keepThreshold: 0.7,
-  foldThreshold: 0.4,
+  keepThreshold: 0.5,    // 降低保留阈值（更激进的去水）
+  foldThreshold: 0.25,   // 降低折叠阈值
   windowSize: 5,
   minParagraphLength: 20,
+  protectDialogue: false, // 默认不保护对话
+};
+
+/**
+ * 去水档位预设
+ */
+export const WaterRemovalLevel = {
+  LIGHT: 'light',      // 轻度去水：保守模式
+  MEDIUM: 'medium',    // 中度去水：平衡模式
+  HEAVY: 'heavy',      // 重度去水：激进模式
+  EXTREME: 'extreme',  // 极限去水：最大压缩
+} as const;
+
+export type WaterRemovalLevel = keyof typeof WaterRemovalLevel;
+
+export const WATER_REMOVAL_PRESETS: Record<string, WaterRemovalConfig> = {
+  [WaterRemovalLevel.LIGHT]: {
+    keepThreshold: 0.75,
+    foldThreshold: 0.5,
+    windowSize: 5,
+    minParagraphLength: 20,
+    protectDialogue: false,
+  },
+  [WaterRemovalLevel.MEDIUM]: {
+    keepThreshold: 0.5,
+    foldThreshold: 0.25,
+    windowSize: 5,
+    minParagraphLength: 20,
+    protectDialogue: false,
+  },
+  [WaterRemovalLevel.HEAVY]: {
+    keepThreshold: 0.35,
+    foldThreshold: 0.15,
+    windowSize: 5,
+    minParagraphLength: 20,
+    protectDialogue: false,
+  },
+  [WaterRemovalLevel.EXTREME]: {
+    keepThreshold: 0.25,
+    foldThreshold: 0.08,
+    windowSize: 5,
+    minParagraphLength: 20,
+    protectDialogue: false,
+  },
 };
 
 /**
@@ -46,6 +91,31 @@ function isTemplateParagraph(text: string): boolean {
   ];
 
   return templatePatterns.some((pattern) => pattern.test(text));
+}
+
+/**
+ * 检测是否为对话段落（需要保护）
+ */
+function isDialogueParagraph(text: string): boolean {
+  // 检测直接引语
+  if (text.includes('"') || text.includes('"') || text.includes('"')) {
+    return true;
+  }
+
+  // 检测对话标记
+  const dialogueMarkers = ['说道', '道：', '道 "', '说 "', '道：'];
+  if (dialogueMarkers.some(marker => text.includes(marker))) {
+    return true;
+  }
+
+  // 检测问号和感叹号（对话常见）
+  const questionCount = (text.match(/\?/g) || []).length;
+  const exclamationCount = (text.match(/！/g) || []).length;
+  if (questionCount >= 2 || exclamationCount >= 2) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -114,18 +184,13 @@ export async function scoreParagraphs(
     }
   }
 
-  // 第二遍：归一化评分并分类
-  const maxNovelty = Math.max(...novelties);
-  const minNovelty = Math.min(...novelties);
-  const range = maxNovelty - minNovelty || 1; // 防止除零
-
+  // ========== 修复: 基于分位数的动态阈值系统 ==========
+  // 步骤1: 计算所有段落的原始分数
+  const rawScores: number[] = [];
   for (let i = 0; i < paragraphs.length; i++) {
     const para = paragraphs[i];
     const rawNovelty = novelties[i];
     const embedding = embeddings[i];
-
-    // 归一化到 0-1
-    const normalizedNovelty = (rawNovelty - minNovelty) / range;
 
     // 检测模板化
     const isTemplate = isTemplateParagraph(para.text);
@@ -136,54 +201,82 @@ export async function scoreParagraphs(
       config.minParagraphLength,
     );
 
-    // ========== 修改1: LocalRepeatPenalty（局部重复惩罚）==========
-    // 检测与前1-2段的相似度（连续水）
+    // ========== LocalRepeatPenalty（局部重复惩罚）==========
     const localSim1 =
       i > 0 ? cosineSimilarity(embedding, embeddings[i - 1]) : 0;
     const localSim2 =
       i > 1 ? cosineSimilarity(embedding, embeddings[i - 2]) : 0;
     const localRepeat = (localSim1 + localSim2) / 2;
 
-    // ========== 修改2: 全局冗余惩罚 ==========
-    // 统计与该段落相似的其他段落数量（重复内容）
+    // ========== 全局冗余惩罚 ==========
     let similarCount = 0;
     for (let j = 0; j < embeddings.length; j++) {
       if (i !== j && cosineSimilarity(embedding, embeddings[j]) > 0.85) {
         similarCount++;
       }
     }
-    const redundancyPenalty = similarCount / embeddings.length;
+    const redundancyPenalty = Math.min(similarCount / embeddings.length, 0.5);
 
-    // 综合评分：归一化novelty（60%）+ 长度分（40%）
-    let score = normalizedNovelty * 0.6 + lengthScore * 0.4;
+    // ========== 惩罚机制 ==========
+    const penalties = [
+      localRepeat * 0.3,
+      redundancyPenalty,
+      isTemplate ? 0.5 : 0
+    ];
+    const maxPenalty = Math.max(...penalties);
 
-    // 应用惩罚因子
-    score *= 1 - localRepeat * 0.5; // 连续重复惩罚
-    score *= 1 - redundancyPenalty; // 全局冗余惩罚
+    // 综合评分
+    let score = rawNovelty * 0.6 + lengthScore * 0.4;
+    score *= 1 - maxPenalty;
 
-    // 模板化段落惩罚
-    if (isTemplate) {
-      score *= 0.3; // 严重惩罚
+    rawScores.push(score);
+  }
+
+  // ========== 步骤2: 根据分数分布计算动态阈值 ==========
+  // 对分数进行排序,计算分位数
+  const sortedScores = [...rawScores].sort((a, b) => a - b);
+
+  // 根据配置的keepThreshold计算实际分位数
+  // keepThreshold: 0.75 → 保留前75%的段落(高分)
+  // keepThreshold: 0.50 → 保留前50%的段落
+  // keepThreshold: 0.35 → 保留前35%的段落
+  // keepThreshold: 0.25 → 保留前25%的段落
+  const percentile = 1 - config.keepThreshold; // 0.75 → 0.25分位数
+  const index = Math.floor(sortedScores.length * percentile);
+  const dynamicThreshold = sortedScores[Math.max(0, index)];
+
+  // 步骤3: 使用动态阈值进行分类
+  for (let i = 0; i < paragraphs.length; i++) {
+    const para = paragraphs[i];
+    const score = rawScores[i];
+
+    // 对话保护机制（可选）
+    let finalScore = score;
+    if (config.protectDialogue && isDialogueParagraph(para.text)) {
+      finalScore = Math.max(score, dynamicThreshold + 0.1);
     }
 
-    // ========== 修改3: 用 score 决策，而非 rawNovelty ==========
+    // ========== 步骤4: 使用动态阈值进行分类 ==========
     let category: "keep" | "fold" | "skip";
     let reason: string;
 
-    if (score >= config.keepThreshold) {
+    // 使用动态阈值而非固定阈值
+    const foldThreshold = dynamicThreshold * 0.6; // fold阈值 = keep阈值的60%
+
+    if (finalScore >= dynamicThreshold) {
       category = "keep";
-      reason = `高信息增量 (score: ${score.toFixed(2)})`;
-    } else if (score >= config.foldThreshold) {
+      reason = `高信息增量 (score: ${finalScore.toFixed(2)}, 动态阈值: ${dynamicThreshold.toFixed(2)})`;
+    } else if (finalScore >= foldThreshold) {
       category = "fold";
-      reason = `中等信息量 (score: ${score.toFixed(2)})`;
+      reason = `中等信息量 (score: ${finalScore.toFixed(2)})`;
     } else {
       category = "fold";
-      reason = `低信息增量${localRepeat > 0.7 ? " (连续重复)" : ""}${redundancyPenalty > 0.3 ? " (冗余内容)" : ""} (score: ${score.toFixed(2)})`;
+      reason = `低信息增量 (score: ${finalScore.toFixed(2)})`;
     }
 
     scores.push({
       id: para.id,
-      score,
+      score: finalScore,
       category,
       reason,
     });
@@ -215,8 +308,8 @@ export function applyWaterRemovalMode(
 
   // normal 模式：去水模式 - 保留高评分段落
   for (const score of scoringResult.scores) {
-    // 保留 keep 和评分较高的 fold 段落
-    const visible = score.category === "keep" || score.score >= 0.4;
+    // 使用 category 决定可见性
+    const visible = score.category === "keep";
 
     result.push({
       id: score.id,

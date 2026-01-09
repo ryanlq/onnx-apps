@@ -1147,3 +1147,47 @@
         padding: 16px;
     }
 }
+
+.level-selector {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.level-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  background: #1a1a2e;
+  color: #d4d4d8;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.level-btn:hover {
+  background: #2d2b42;
+  border-color: #60a5fa;
+  transform: translateY(-2px);
+}
+
+.level-btn.active {
+  background: #3b82f6;
+  border-color: #60a5fa;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.level-desc {
+  font-size: 11px;
+  font-weight: normal;
+  opacity: 0.9;
+  margin-top: -2px;
+}
+
