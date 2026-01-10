@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "pnpm exec tsc -b && ./node_modules/.bin/vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "upload:r2": "node scripts/upload-r2.js",

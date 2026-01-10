@@ -5,6 +5,8 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // ✅ WSL 修复：指定缓存目录到 WSL 文件系统，避免 Windows 路径问题
+  cacheDir: path.resolve(__dirname, 'node_modules/.vite'),
   plugins: [
     react(),
     VitePWA({
@@ -93,7 +95,7 @@ export default defineConfig({
         ]
       },
       devOptions: {
-        enabled: true, // 开发环境也启用 Service Worker
+        enabled: false, // ✅ 修复：开发环境禁用 Service Worker，避免拦截 Vite HMR 请求
         type: 'module'
       }
     })

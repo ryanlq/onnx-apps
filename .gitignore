@@ -4,6 +4,7 @@ dist/
 dist-ssr/
 *.local
 
+
 # 锁定文件（Cloudflare Pages 会自动生成）
 package-lock.json
 yarn.lock
@@ -71,6 +72,7 @@ switch-dependency.js
 switch-dependency.sh
 wrangler.toml.example
 wrangler.toml
+.npmrc
 
 # ========== 不必要的文档（保留核心文档） ==========
 FREE_STORAGE_OPTIONS.md
@@ -79,6 +81,8 @@ HUGGINGFACE_QUICKSTART.md
 HUGGINGFACE_SETUP.md
 CLOUDFLARE_DEPLOYMENT.md
 CLOUDFLARE_QUICKSTART.md
+AGENTS.md
+CLAUDE.md
 
 # 保留的文档：
 # - DEPLOY.md（快速部署指南）

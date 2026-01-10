@@ -22,6 +22,142 @@ interface WaterRemovalReaderProps {
   onBack: () => void;
 }
 
+// ✅ localStorage 工具函数，用于持久化批量处理进度
+const BATCH_STORAGE_KEY = 'water-removal-batch-progress';
+
+interface BatchProgressData {
+  chapters: Chapter[];
+  timestamp: number;
+  totalChapters: number;
+  processedCount: number;
+}
+
+const saveBatchProgress = (chapters: Chapter[]) => {
+  try {
+    const data: BatchProgressData = {
+      chapters,
+      timestamp: Date.now(),
+      totalChapters: chapters.length,
+      processedCount: chapters.filter(ch => ch.paragraphs && ch.paragraphs.length > 0).length,
+    };
+    localStorage.setItem(BATCH_STORAGE_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.warn('[保存进度] 保存失败:', error);
+  }
+};
+
+const loadBatchProgress = (): BatchProgressData | null => {
+  try {
+    const stored = localStorage.getItem(BATCH_STORAGE_KEY);
+    if (stored) {
+      const data = JSON.parse(stored) as BatchProgressData;
+      // 检查数据是否在7天内
+      const daysSinceUpdate = (Date.now() - data.timestamp) / (1000 * 60 * 60 * 24);
+      if (daysSinceUpdate <= 7) {
+        return data;
+      } else {
+        // 超过7天，清除旧数据
+        localStorage.removeItem(BATCH_STORAGE_KEY);
+      }
+    }
+  } catch (error) {
+    console.warn('[加载进度] 加载失败:', error);
+  }
+  return null;
+};
+
+const clearBatchProgress = () => {
+  try {
+    localStorage.removeItem(BATCH_STORAGE_KEY);
+  } catch (error) {
+    console.warn('[清除进度] 清除失败:', error);
+  }
+};
+
+// ✅ 书籍持久化工具函数
+const BOOK_STORAGE_KEY = 'water-removal-current-book';
+const MAX_STORAGE_SIZE = 3 * 1024 * 1024; // 3 MB
+
+interface BookData {
+  rawText: string;
+  chapters: Chapter[];
+  currentChapter: number;
+  timestamp: number;
+  bookTitle: string;
+  // 配置
+  readMode: 'normal' | 'original';
+  waterRemovalLevel: string;
+  keepThreshold: number;
+  foldThreshold: number;
+  protectDialogue: boolean;
+}
+
+const saveBookData = (rawText: string, chapters: Chapter[], currentChapter: number,
+                      readMode: 'normal' | 'original', waterRemovalLevel: string,
+                      keepThreshold: number, foldThreshold: number, protectDialogue: boolean) => {
+  try {
+    const bookData: BookData = {
+      rawText,
+      chapters,
+      currentChapter,
+      timestamp: Date.now(),
+      bookTitle: rawText.split('\n')[0].substring(0, 50), // 从第一行提取书名
+      readMode,
+      waterRemovalLevel,
+      keepThreshold,
+      foldThreshold,
+      protectDialogue,
+    };
+
+    const jsonString = JSON.stringify(bookData);
+    const size = new Blob([jsonString]).size;
+
+    // 检查大小是否超过限制
+    if (size > MAX_STORAGE_SIZE) {
+      console.warn('[保存书籍] 文件过大（' + Math.round(size / 1024 / 1024 * 100) / 100 + ' MB），跳过持久化');
+      return false;
+    }
+
+    localStorage.setItem(BOOK_STORAGE_KEY, jsonString);
+    console.log('[保存书籍] 成功保存，大小: ' + Math.round(size / 1024) + ' KB');
+    return true;
+  } catch (error) {
+    console.warn('[保存书籍] 保存失败:', error);
+    return false;
+  }
+};
+
+const loadBookData = (): BookData | null => {
+  try {
+    const stored = localStorage.getItem(BOOK_STORAGE_KEY);
+    if (stored) {
+      const data = JSON.parse(stored) as BookData;
+      // 检查数据是否在30天内
+      const daysSinceUpdate = (Date.now() - data.timestamp) / (1000 * 60 * 60 * 24);
+      if (daysSinceUpdate <= 30) {
+        console.log('[加载书籍] 成功加载: ' + data.bookTitle);
+        return data;
+      } else {
+        // 超过30天，清除旧数据
+        localStorage.removeItem(BOOK_STORAGE_KEY);
+        console.log('[加载书籍] 数据过期，已清除');
+      }
+    }
+  } catch (error) {
+    console.warn('[加载书籍] 加载失败:', error);
+  }
+  return null;
+};
+
+const clearBookData = () => {
+  try {
+    localStorage.removeItem(BOOK_STORAGE_KEY);
+    console.log('[清除书籍] 已清除保存的书籍数据');
+  } catch (error) {
+    console.warn('[清除书籍] 清除失败:', error);
+  }
+};
+
 const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
   // 文本和段落
   const [rawText, setRawText] = useState<string>("");
@@ -91,11 +227,29 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
   const [expandedPlaceholders, setExpandedPlaceholders] = useState<Set<number>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const autoProcessTriggeredRef = useRef(false); // 跟踪是否已经触发过自动处理
+  const autoProcessTriggeredRef = useRef(false);
+  const modelInitToastShownRef = useRef(false); // 跟踪是否已经触发过自动处理
+  const modelInitializingRef = useRef(false); // ✅ 跟踪模型是否正在初始化，避免重复初始化
+  const batchCancelledRef = useRef(false); // 跟踪批量处理是否被取消
+  const batchPausedRef = useRef(false); // 跟踪批量处理暂停状态（使用 ref 避免 stale closure）
+  const chaptersRef = useRef<Chapter[]>([]); // ✅ 修复: 使用 ref 避免 processChapter 中的 stale closure
+
+  // ✅ 同步 chaptersRef 与 chapters 状态
+  useEffect(() => {
+    chaptersRef.current = chapters;
+  }, [chapters]);
 
   // 初始化模型
   useEffect(() => {
+    // ✅ 避免重复初始化：如果已经初始化或正在初始化，跳过
+    if (isInitialized || modelInitializingRef.current) {
+      return;
+    }
+
     const init = async () => {
+      // 标记正在初始化
+      modelInitializingRef.current = true;
+
       try {
         const loadingToast = toast.info("⏳ 正在加载 BGE 模型...", {
           autoClose: false,
@@ -108,30 +262,117 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
 
         setIsInitialized(true);
         toast.dismiss(loadingToast);
-        toast.success("✅ 模型加载完成");
-        console.log("[debug] 模型加载完成")
-        // 模型加载完成后，如果开启了自动去水且有章节，自动处理并显示第一章
-        if (autoWaterRemoval && chapters.length > 0 && !autoProcessTriggeredRef.current) {
-          autoProcessTriggeredRef.current = true;
-          // ✅ 修复1: 点击并显示第一章，而不是currentChapter（可能是空的）
-
-          // ========== 🔍 调试2: 准备调用handleChapterChange ==========
-          console.log('[调试1] 模型加载完成，准备调用handleChapterChange(0)');
-          console.log('[调试1] 当前chapters.length:', chapters.length);
-          console.log('[调试1] chapters[0]:', chapters[0]);
-          console.log('[调试1] chapters[0].paragraphs:', chapters[0]?.paragraphs);
-
-          await handleChapterChange(0);
+        // 只在第一次初始化时显示成功 toast
+        if (!modelInitToastShownRef.current) {
+          toast.success("✅ 模型加载完成");
+          modelInitToastShownRef.current = true;
         }
       } catch (error) {
         toast.error(
           `模型加载失败: ${error instanceof Error ? error.message : "未知错误"}`,
         );
+      } finally {
+        // 标记初始化完成
+        modelInitializingRef.current = false;
       }
     };
 
     init();
-  }, [settingsOpen, chapters, autoWaterRemoval]); // ✅ 修复：添加chapters和autoWaterRemoval依赖
+  }, [isInitialized]); // ✅ 只依赖 isInitialized，避免其他状态变化触发重复初始化
+
+  // ✅ 模型加载完成后，如果开启了自动去水且有章节，自动处理第一章
+  useEffect(() => {
+    if (isInitialized && autoWaterRemoval && chapters.length > 0 && !autoProcessTriggeredRef.current) {
+      autoProcessTriggeredRef.current = true;
+      handleChapterChange(0);
+    }
+  }, [isInitialized, autoWaterRemoval, chapters.length]); // 只依赖这些值的变化
+
+  // ✅ 检查是否有未完成的批量处理进度
+  useEffect(() => {
+    const savedProgress = loadBatchProgress();
+    if (savedProgress && savedProgress.processedCount > 0 && savedProgress.processedCount < savedProgress.totalChapters) {
+      // 显示恢复进度的提示
+      const restoreToast = toast.info(
+        `📦 发现有未完成的批量处理进度：${savedProgress.processedCount}/${savedProgress.totalChapters} 章已处理\n点击按钮恢复`,
+        {
+          autoClose: false,
+          closeButton: true,
+          closeOnClick: false,
+          draggable: false,
+          onClick: () => {
+            // 恢复进度
+            setChapters(savedProgress.chapters);
+            chaptersRef.current = savedProgress.chapters;
+            toast.dismiss(restoreToast);
+            toast.success(`✅ 已恢复 ${savedProgress.processedCount} 章的处理进度`);
+          },
+        }
+      );
+
+      // 30秒后自动关闭提示
+      setTimeout(() => {
+        toast.dismiss(restoreToast);
+      }, 30000);
+    }
+  }, []); // 只在组件挂载时检查一次
+
+  // ✅ 自动恢复上次打开的书籍数据
+  useEffect(() => {
+    // 只在模型初始化后才恢复书籍，避免状态冲突
+    if (!isInitialized) return;
+
+    const savedBook = loadBookData();
+    if (savedBook && chapters.length === 0) {
+      // 只有当前没有加载书籍时才自动恢复
+      console.log('[自动恢复] 正在恢复书籍：' + savedBook.bookTitle);
+
+      // 恢复书籍数据
+      setRawText(savedBook.rawText);
+      setChapters(savedBook.chapters);
+      setCurrentChapter(savedBook.currentChapter);
+      setReadMode(savedBook.readMode);
+      setWaterRemovalLevel(savedBook.waterRemovalLevel as any);
+      setKeepThreshold(savedBook.keepThreshold);
+      setFoldThreshold(savedBook.foldThreshold);
+      setProtectDialogue(savedBook.protectDialogue);
+
+      // 更新 ref
+      chaptersRef.current = savedBook.chapters;
+
+      // 恢复当前章节的显示
+      if (savedBook.chapters.length > 0 && savedBook.chapters[savedBook.currentChapter]) {
+        const currentChapterData = savedBook.chapters[savedBook.currentChapter];
+        if (currentChapterData.paragraphs && currentChapterData.paragraphs.length > 0) {
+          setParagraphs(currentChapterData.paragraphs);
+          const visibleSet = new Set(
+            currentChapterData.paragraphs
+              .filter((p: any) => p.visible)
+              .map((p: any) => p.id)
+          );
+          setVisibleParagraphs(visibleSet);
+        } else {
+          // 如果当前章节没有处理过，初始化显示
+          const paragraphs = splitIntoParagraphs(currentChapterData.content);
+          const paragraphsWithVisible = paragraphs.map((p) => ({
+            ...p,
+            visible: true,
+          }));
+          setParagraphs(paragraphsWithVisible);
+          setVisibleParagraphs(new Set(paragraphs.map((p) => p.id)));
+        }
+      }
+
+      // 显示成功提示
+      const processedCount = savedBook.chapters.filter(ch => ch.paragraphs && ch.paragraphs.length > 0).length;
+      toast.success(
+        `✅ 已自动恢复：${savedBook.bookTitle}\n` +
+        `📚 共 ${savedBook.chapters.length} 章，已处理 ${processedCount} 章\n` +
+        `📍 当前位置：第 ${savedBook.currentChapter + 1} 章`,
+        { autoClose: 5000 }
+      );
+    }
+  }, [isInitialized, chapters.length]); // 依赖模型初始化状态和当前章节数
 
   // ESC 键关闭设置弹窗
   useEffect(() => {
@@ -152,6 +393,12 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
 
     setIsProcessing(true);
     setProgress(0);
+
+    // ✅ 上传新文件时，清除旧的书籍数据
+    if (chapters.length > 0) {
+      clearBookData();
+      console.log('[文件上传] 已清除旧的书籍数据');
+    }
 
     // 重置自动处理触发器，确保新文件上传时会自动处理
     autoProcessTriggeredRef.current = false;
@@ -221,19 +468,12 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
 
       setChapters(chaptersWithParagraphs);
 
-      // ========== 🔍 调试1: setChapters后 ==========
-      console.log('[调试1] setChapters后 - chaptersWithParagraphs:', chaptersWithParagraphs);
-      console.log('[调试1] chaptersWithParagraphs.length:', chaptersWithParagraphs.length);
-      console.log('[调试1] chaptersWithParagraphs[0]:', chaptersWithParagraphs[0]);
-
       // ✅ 修复4: 移除handleChapterChange，直接使用初始化显示逻辑
       // if (isInitialized && autoWaterRemoval) {
       //   setTimeout(() => {
       //     processChapter(0);
       //   }, 100);
       // }
-
-      console.log("[debug] 正文显示")
 
       // 初始化第一章的段落显示（使用本地数据，不依赖状态更新）
       if (chaptersWithParagraphs.length > 0) {
@@ -254,6 +494,25 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
             processChapter(0);
           }, 100);
         }
+
+        // ✅ 保存书籍数据到 localStorage
+        setTimeout(() => {
+          const saved = saveBookData(
+            cleanedText,
+            chaptersWithParagraphs,
+            0, // currentChapter
+            readMode,
+            waterRemovalLevel,
+            keepThreshold,
+            foldThreshold,
+            protectDialogue
+          );
+          if (saved) {
+            console.log('[文件上传] 书籍数据已自动保存');
+          } else {
+            toast.info('💾 文件较大，未自动保存到本地（刷新后需重新上传）', { autoClose: 5000 });
+          }
+        }, 500);
       }
     } catch (error) {
       console.error("File parsing error:", error);
@@ -266,25 +525,27 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
     }
   };
 
-  // 处理单个章节
-  const processChapter = async (chapterIndex: number, skipToast: boolean = false) => {
-    console.log("[debug] chapterIndex: ",chapterIndex)
-    if (chapters.length === 0) return;
+  // 处理单个章节，返回是否成功、段落数量和更新后的章节
+  const processChapter = async (chapterIndex: number, skipToast: boolean = false, skipOverlay: boolean = false ): Promise<{ success: boolean, paragraphCount: number, updatedChapter?: Chapter }> => {
+    // ✅ 修复: 使用 ref 而不是状态，避免批量处理时的 stale closure
+    const currentChapters = chaptersRef.current;
+    if (currentChapters.length === 0) return { success: false, paragraphCount: 0 };
 
-    const chapter = chapters[chapterIndex];
-    
-    console.log("[debug] chapter: ",chapter)
-    if (!chapter) return;
+    const chapter = currentChapters[chapterIndex];
+    if (!chapter) return { success: false, paragraphCount: 0 };
 
     // 检查模型是否准备好
     if (!isInitialized) {
       toast.warn("⏳ 模型正在加载中，请稍候...", {
         autoClose: 3000,
       });
-      return;
+      return { success: false, paragraphCount: 0 };
+    }
+    
+    if (!skipOverlay) {
+      setIsProcessing(true);
     }
 
-    setIsProcessing(true);
     setProgress(0);
 
     // 保存处理前的字数统计
@@ -319,7 +580,8 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
       );
 
       // 更新章节段落数据
-      const updatedChapters = [...chapters];
+      // ✅ 修复: 使用 currentChapters 而不是 chapters，确保批量处理时使用最新数据
+      const updatedChapters = [...currentChapters];
       updatedChapters[chapterIndex] = {
         ...chapter,
         paragraphs: paras.map((para, idx) => ({
@@ -329,8 +591,6 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
         })),
       };
 
-      
-      console.log("[debug] updatedChapters: ",updatedChapters)
       setChapters(updatedChapters);
       setParagraphs(updatedChapters[chapterIndex].paragraphs);
       setVisibleParagraphs(visibleSet);
@@ -363,25 +623,20 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
           },
         );
       }
+
+      return { success: true, paragraphCount: visibleSet.size, updatedChapter: updatedChapters[chapterIndex] };
     } catch (error) {
       toast.error(
         `处理失败: ${error instanceof Error ? error.message : "未知错误"}`,
       );
       console.error(error);
+      return { success: false, paragraphCount: 0 };
     } finally {
-      setIsProcessing(false);
-      setProgress(0);
+        if (!skipOverlay) {
+          setIsProcessing(false);
+        }
+        setProgress(0);
     }
-  };
-
-  // 处理当前章节
-  const handleProcess = async () => {
-    if (chapters.length === 0) {
-      toast.error("请先上传文件");
-      return;
-    }
-
-    await processChapter(currentChapter);
   };
 
   // 初始化章节显示（不进行去水处理）
@@ -503,8 +758,6 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
     setRemovalStats(null);
 
     // ✅ 修复3：检查章节是否已处理（必须有去水评分数据）
-    console.log("[debug] chapters:",chapters)
-    console.log("[debug] chapter:",chapter)
     if(!chapter) return ;
     const hasProcessedData =
       chapter.paragraphs &&
@@ -542,7 +795,6 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
 
       // ✅ 修复5: 首次显示时，如果自动去水开启且章节未处理，则自动去水
       if (autoWaterRemoval && isInitialized && !hasProcessedData) {
-        console.log("[debug] 首次显示，触发自动去水 - 章节", index);
         await processChapter(index);
       } else {
         // 否则初始化章节显示（不进行去水）
@@ -551,6 +803,18 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
     }
 
     setSidebarOpen(false); // 关闭侧边栏
+
+    // ✅ 切换章节时保存阅读位置
+    saveBookData(
+      rawText,
+      chapters,
+      index,
+      readMode,
+      waterRemovalLevel,
+      keepThreshold,
+      foldThreshold,
+      protectDialogue
+    );
   };
 
   // 切换模式
@@ -591,7 +855,12 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
       return;
     }
 
+    // 初始化取消标志
+    batchCancelledRef.current = false;
+    batchPausedRef.current = false;
+
     setBatchProcessing(true);
+    setBatchPaused(false);
     setBatchProgress({
       total: chapters.length,
       processed: 0,
@@ -601,35 +870,57 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
     let successCount = 0;
     let failCount = 0;
 
+    // 保存原始章节索引，避免批量处理时 UI 跳动
+    const originalChapter = currentChapter;
+
+    // ✅ 修复: 创建本地副本用于累积更新，避免异步状态更新导致的数据丢失
+    const batchChapters = [...chaptersRef.current];
+
+    // ✅ 分批处理配置：每批处理的章节数
+    const BATCH_SIZE = 10; // 每批处理 10 章，可根据实际情况调整
+
     for (let i = 0; i < chapters.length; i++) {
-      // 检查是否暂停
-      if (batchPaused) {
-        await new Promise((resolve) => {
-          const checkPaused = setInterval(() => {
-            if (!batchPaused) {
-              clearInterval(checkPaused);
-              resolve(undefined);
-            }
-          }, 100);
-        });
+      // ✅ 修复1: 检查是否取消
+      if (batchCancelledRef.current) {
+        toast.info("⚠️ 批量处理已取消");
+        break;
       }
 
-      // 检查是否已处理
-      if (!chapters[i].paragraphs || chapters[i].paragraphs.length === 0) {
+      // ✅ 修复2: 使用 ref 检查暂停，避免 stale closure
+      while (batchPausedRef.current && !batchCancelledRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // 再次检查取消（可能暂停期间被取消）
+      if (batchCancelledRef.current) {
+        toast.info("⚠️ 批量处理已取消");
+        break;
+      }
+
+      // 检查是否已处理（使用本地副本 batchChapters）
+      if (!batchChapters[i].paragraphs || batchChapters[i].paragraphs.length === 0) {
         setBatchProgress({
           total: chapters.length,
           processed: i,
-          currentChapter: chapters[i].title,
+          currentChapter: batchChapters[i].title,
         });
 
-        try {
-          setCurrentChapter(i);
-          // ✅ 修复2: 传递true跳过toast
-          await processChapter(i, true);
+        console.log('[批量处理] 开始处理第 ' + (i+1) + ' 章: ' + batchChapters[i].title);
+
+        // ✅ 修复: 使用返回的对象，包含 success, paragraphCount 和 updatedChapter
+        const result = await processChapter(i, true, true);
+        console.log('[批量处理] 第 ' + (i+1) + ' 章处理' + (result.success ? '成功' : '失败'));
+
+        if (result.success) {
           successCount++;
-        } catch (error) {
-          console.error(`章节 ${i + 1} 处理失败:`, error);
+          console.log('[批量处理] 第 ' + (i+1) + ' 章段落数据: ' + result.paragraphCount + ' 个');
+          // ✅ 修复: 使用返回的 updatedChapter 更新本地副本
+          if (result.updatedChapter) {
+            batchChapters[i] = result.updatedChapter;
+          }
+        } else {
           failCount++;
+          console.log('[批量处理] 第 ' + (i+1) + ' 章处理失败');
         }
       } else {
         successCount++;
@@ -638,35 +929,91 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
       setBatchProgress({
         total: chapters.length,
         processed: i + 1,
-        currentChapter: chapters[i].title,
+        currentChapter: batchChapters[i].title,
       });
+
+      // ✅ 分批保存：每处理 BATCH_SIZE 章保存一次进度
+      if ((i + 1) % BATCH_SIZE === 0 || i === chapters.length - 1) {
+        // 更新状态和 ref
+        setChapters([...batchChapters]);
+        chaptersRef.current = [...batchChapters];
+
+        // 保存到 localStorage
+        saveBatchProgress(batchChapters);
+        console.log('[分批保存] 已保存 ' + (i + 1) + '/' + chapters.length + ' 章的处理进度');
+
+        // ✅ 同时保存书籍数据（包括处理结果）
+        saveBookData(
+          rawText,
+          [...batchChapters],
+          currentChapter,
+          readMode,
+          waterRemovalLevel,
+          keepThreshold,
+          foldThreshold,
+          protectDialogue
+        );
+      }
     }
 
+    // ✅ 批量处理完成，一次性更新所有章节状态
+    setChapters(batchChapters);
+    chaptersRef.current = batchChapters;
+
+    // 恢复原始章节
+    setCurrentChapter(originalChapter);
+
     setBatchProcessing(false);
+    setBatchPaused(false);
     setBatchProgress({
       total: 0,
       processed: 0,
       currentChapter: "",
     });
 
-    if (failCount === 0) {
+    // 批量处理结束，记录统计
+    console.log('[批量处理结束] 共处理 ' + successCount + ' 章，失败 ' + failCount + ' 章');
+    console.log('[批量处理结束] 各章节数据:');
+    for (let j = 0; j < batchChapters.length; j++) {
+      const ch = batchChapters[j];
+      console.log('  ' + (j+1) + '. ' + ch.title + ', 段落数: ' + (ch.paragraphs ? ch.paragraphs.length : 0) + ' 个');
+    }
+
+    // ✅ 批量处理完成，清除 localStorage 中的进度
+    if (!batchCancelledRef.current && failCount === 0) {
+      clearBatchProgress();
+      console.log('[批量处理完成] 已清除保存的进度');
       toast.success(`✅ 批量处理完成！共处理 ${successCount} 章`);
+    } else if (!batchCancelledRef.current) {
+      // 有失败的章节，保存当前进度
+      saveBatchProgress(batchChapters);
+      toast.warn(`⚠️ 批量处理完成！成功 ${successCount} 章，失败 ${failCount} 章\n进度已保存，可继续处理失败的章节`);
     } else {
-      toast.warn(`⚠️ 批量处理完成！成功 ${successCount} 章，失败 ${failCount} 章`);
+      // 被取消，保存当前进度
+      saveBatchProgress(batchChapters);
+      toast.info(`⏸️ 批量处理已取消，已处理 ${successCount} 章的进度已保存`);
     }
   };
 
   // 导出去水结果
   const handleExport = () => {
+    console.log('[导出开始] ==========');
+    console.log('[导出] 当前模式: ' + readMode);
+    console.log('[导出] 总章节数: ' + chapters.length);
+
+    const processedChapters = chapters.filter(
+      (ch) => ch.paragraphs && ch.paragraphs.length > 0
+    );
+
+    console.log('[导出] 已处理的章节数: ' + processedChapters.length);
+    console.log('[导出] 已处理的章节列表:');
+    processedChapters.forEach((ch, idx) => {
+      console.log('  ' + (idx+1) + '. ' + ch.title + ' (段落数: ' + ch.paragraphs.length + ')');
+    });
     if (chapters.length === 0) {
       toast.warn("没有可导出的内容");
       return;
     }
-
-    // 检查是否有已处理的章节
-    const processedChapters = chapters.filter(
-      (ch) => ch.paragraphs && ch.paragraphs.length > 0
-    );
 
     if (processedChapters.length === 0) {
       toast.warn("请先处理章节后再导出");
@@ -674,18 +1021,31 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
     }
 
     let content = "";
+    let exportedChapterCount = 0;
 
+    console.log('[导出遍历] 开始遍历所有章节...');
     chapters.forEach((chapter, index) => {
       const paragraphs = chapter.paragraphs || [];
+      console.log('[导出遍历] 第 ' + (index+1) + ' 章: ' + chapter.title + ', 段落总数: ' + paragraphs.length);
 
       // 只导出有段落数据的章节
-      if (paragraphs.length === 0) return;
+      if (paragraphs.length === 0) {
+        console.log('[导出遍历] 第 ' + (index+1) + ' 章: 无段落数据，跳过');
+        return;
+      }
 
       // 只保留可见的段落
       const visibleParagraphs = paragraphs.filter((p: any) => p.visible);
+      console.log('[导出遍历] 第 ' + (index+1) + ' 章: 可见段落 ' + visibleParagraphs.length + ' 个');
 
       // 如果没有可见段落，跳过该章节
-      if (visibleParagraphs.length === 0) return;
+      if (visibleParagraphs.length === 0) {
+        console.log('[导出遍历] 第 ' + (index+1) + ' 章: 无可见段落，跳过');
+        return;
+      }
+
+      exportedChapterCount++;
+      console.log('[导出遍历] 第 ' + (index+1) + ' 章: 开始添加到导出内容');
 
       // 章节标题
       content += `第${index + 1}章 ${chapter.title}\n`;
@@ -697,7 +1057,10 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
       });
 
       content += "-".repeat(50) + "\n\n";
+      console.log('[导出遍历] 第 ' + (index+1) + ' 章: 已添加，当前内容长度: ' + content.length);
     });
+
+    console.log('[导出完成] 共导出 ' + exportedChapterCount + ' 章，内容总长度: ' + content.length);
 
     // 生成文件名（使用书名或第一章节标题）
     const bookTitle =
@@ -1162,7 +1525,11 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
                     <div className="batch-progress-actions">
                       <button
                         className="progress-btn"
-                        onClick={() => setBatchPaused(!batchPaused)}
+                        onClick={() => {
+                          const newPausedState = !batchPaused;
+                          batchPausedRef.current = newPausedState;
+                          setBatchPaused(newPausedState);
+                        }}
                       >
                         {batchPaused ? "▶ 继续" : "⏸ 暂停"}
                       </button>
@@ -1170,9 +1537,11 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
                         className="progress-btn progress-btn-cancel"
                         onClick={() => {
                           if (window.confirm("确定要取消批量处理吗？")) {
+                            batchCancelledRef.current = true;  // ✅ 设置取消标志
+                            batchPausedRef.current = false;
                             setBatchProcessing(false);
                             setBatchPaused(false);
-                            toast.info("已取消批量处理");
+                            toast.info("正在取消批量处理...");
                           }
                         }}
                       >
@@ -1282,7 +1651,7 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
         )}
       </div>
 
-      <ToastContainer autoClose={2000} position="bottom-right" />
+      <ToastContainer autoClose={5000} position="bottom-right" limit={3} newestOnTop={true} />
     </div>
   );
 };
