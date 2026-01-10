@@ -415,7 +415,7 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
   };
 
   // 处理单个章节，返回是否成功、段落数量和更新后的章节
-  const processChapter = async (chapterIndex: number, skipToast: boolean = false, skipOverlay: boolean = false ): Promise<{ success: boolean, paragraphCount: number, updatedChapter?: Chapter }> => {
+  const processChapter = async (chapterIndex: number, skipOverlay: boolean = false ): Promise<{ success: boolean, paragraphCount: number, updatedChapter?: Chapter }> => {
     // ✅ 修复: 使用 ref 而不是状态，避免批量处理时的 stale closure
     const currentChapters = chaptersRef.current;
     if (currentChapters.length === 0) return { success: false, paragraphCount: 0 };
@@ -801,7 +801,7 @@ const WaterRemovalReader: React.FC<WaterRemovalReaderProps> = ({ onBack }) => {
         console.log('[批量处理] 开始处理第 ' + (i+1) + ' 章: ' + batchChapters[i].title);
 
         // ✅ 修复: 使用返回的对象，包含 success, paragraphCount 和 updatedChapter
-        const result = await processChapter(i, true, true);
+        const result = await processChapter(i, true);
         console.log('[批量处理] 第 ' + (i+1) + ' 章处理' + (result.success ? '成功' : '失败'));
 
         if (result.success) {

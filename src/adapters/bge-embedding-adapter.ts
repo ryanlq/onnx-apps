@@ -25,10 +25,7 @@ export async function initializeBGEModel(): Promise<void> {
   if (modelLoaded) return;
 
   try {
-    console.log("[BGE Adapter] 正在初始化模型...");
-
     // 预加载本地 tokenizer.json 配置
-    console.log("[BGE Adapter] 正在加载本地 tokenizer 配置...");
     try {
       const response = await fetch("/bge-small-zh-v1.5/tokenizer.json");
       if (!response.ok) {
@@ -42,7 +39,6 @@ export async function initializeBGEModel(): Promise<void> {
       if (typeof window !== 'undefined') {
         (window as any).__bgeTokenizerFallback = false; // 不是降级，是主动使用本地
       }
-      console.log("[BGE Adapter] 📦 使用本地 tokenizer.json（无需网络加载）");
     } catch (error) {
       console.warn(
         "[BGE Adapter] ⚠️ 本地 tokenizer.json 加载失败，尝试从网络加载...",
@@ -70,10 +66,10 @@ export async function initializeBGEModel(): Promise<void> {
     manager = ONNXWorkerManager.getInstance();
 
     // 使用用户指定的模型
-    // const modelUrl =
-    //   "https://huggingface.co/ryanli123/onnx/resolve/main/bge-small-zh-v1.5/model_int8.ort";
     const modelUrl =
-      "https://www.modelscope.cn/models/Xenova/bge-small-zh-v1.5/resolve/master/onnx/model_int8.onnx";
+      "https://huggingface.co/ryanli123/onnx/resolve/main/bge-small-zh-v1.5/model_int8.ort";
+    // const modelUrl =
+    //   "https://www.modelscope.cn/models/Xenova/bge-small-zh-v1.5/resolve/master/onnx/model_int8.onnx";
     console.log("[BGE Adapter] 正在加载 ONNX 模型...");
     await manager.loadModel("bge", modelUrl);
 
